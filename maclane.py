@@ -20,6 +20,9 @@ AUTHORS:
 - David Zelinsky <dsz@dedekind.net>
 
 
+LICENSE: GPLv3
+
+
 TABLE OF CONTENTS
 
 - Utility Functions
