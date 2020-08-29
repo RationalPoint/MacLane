@@ -20,9 +20,6 @@ AUTHORS:
 - David Zelinsky <dsz@dedekind.net>
 
 
-LICENSE: GPLv3
-
-
 TABLE OF CONTENTS
 
 - Utility Functions
@@ -1307,10 +1304,10 @@ class InductiveValuation(SageObject):
       sage: invariants = [(V.relative_residue_degree(),V.relative_ramification_index()) for V in V2.iterstages()]
       sage: print(invariants)
       [(1, 2), (1, 2), (2, 1)]
-      sage: R0,R1,R2 = [V.residue_ring() for v in V2.iterstages()]
+      sage: R0,R1,R2 = [v.residue_ring() for v in V2.iterstages()]
       sage: M1 = V1.residue_constant_field_reduce
       sage: M2 = V2.residue_constant_field_reduce
-      sage: g0,g1,g2 = [v.residue_constant_field_gen() for v in V.iterstages()]
+      sage: g0,g1,g2 = [v.residue_constant_field_gen() for v in V2.iterstages()]
       sage: z0 = M2(R1(M1(R0(g0))))
       sage: print(z0)
       1
@@ -1318,11 +1315,11 @@ class InductiveValuation(SageObject):
       sage: print(z1)
       5
       sage: z2 = g2
-      sage: V.residue_constant_field_expand(z0)
+      sage: V2.residue_constant_field_expand(z0)
       [[1], [0]]
-      sage: V.residue_constant_field_expand(z1)
+      sage: V2.residue_constant_field_expand(z1)
       [[5], [0]]
-      sage: V.residue_constant_field_expand(z2)
+      sage: V2.residue_constant_field_expand(z2)
       [[0], [1]]
 
     """
@@ -5075,9 +5072,16 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
 
   all_keypols = set()
 
+  def vertex_key(v):
+    a,b,c,d = v
+    if c is not None:
+      return v
+    else:
+      return (a,b,-1,d)
+
   # make the stage-0 valuations
   vv = G.sources()
-  vv.sort(key=G.get_vertex)
+  vv.sort(key=vertex_key)
   je = set()
   for i,j,_,(f,e) in vv:
     if f != 1:
