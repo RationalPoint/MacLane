@@ -354,6 +354,7 @@ def discrete_generator(a,b):
 ###########################  ExtensionOfFiniteField  ###########################
 ################################################################################
 
+
 class ExtensionOfFiniteField(object):
   r"""
   Class for relative extensions of finite fields with coercion and lifting maps.
@@ -569,6 +570,7 @@ class ExtensionOfFiniteField(object):
 ################################################################################
 #############################  InductiveValuation  #############################
 ################################################################################
+
 
 class InductiveValuation(SageObject):
   r"""
@@ -3244,6 +3246,7 @@ class InductiveValuation(SageObject):
 #############################  StageZeroValuation  #############################
 ################################################################################
 
+
 def StageZeroValuation(key_polynomial=None, key_value=None, indval=None, **kwargs):
   r"""
   Construct a stage-0 InductiveValuation object.
@@ -3380,6 +3383,7 @@ def StageZeroValuation(key_polynomial=None, key_value=None, indval=None, **kwarg
 ################################################################################
 ##########################  ExtensionFieldValuation  ###########################
 ################################################################################
+
 
 class ExtensionFieldValuation(SageObject):
   r"""
@@ -4072,6 +4076,7 @@ class ExtensionFieldValuation(SageObject):
 ########################  ExtensionFieldDecomposition  #########################
 ################################################################################
 
+
 class ExtensionFieldDecomposition(object):
   r"""
   Class describing the decomposition of a valuation in an extension field.
@@ -4694,6 +4699,7 @@ def function_field_decomposition(p, target_poly, name=None, check=False, collaps
 #######################  CONSTRUCTION AND VISUALIZATION  #######################
 ################################################################################
 
+
 def compute_vertex_positions(G, expansion=1):
   ss = G.sinks()
   ss.sort(reverse=True)
@@ -5010,7 +5016,7 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
       True
 
     Make a graph that looks like this, with "v(f,e)" meaning a vertex "v" with
-    given values of f and e:
+    given values of residue degree (f) and ramification index (e):
 
       v0(1,1) -> v1(3,2) -> v2(1,2) -> v3(1,1)
 
@@ -5072,16 +5078,8 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
 
   all_keypols = set()
 
-  def vertex_key(v):
-    a,b,c,d = v
-    if c is not None:
-      return v
-    else:
-      return (a,b,-1,d)
-
   # make the stage-0 valuations
   vv = G.sources()
-  vv.sort(key=vertex_key)
   je = set()
   for i,j,_,(f,e) in vv:
     if f != 1:
@@ -5094,7 +5092,7 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
   phi = x
   for j in jj:
     # make a new linear key polynomial
-    num_tries = 0               # limit number of tries to prevent infinite loop
+    num_tries = 0     # limit number of tries to prevent infinite loop
     while True:
       if phi not in all_keypols and Z.is_key(phi) and Z.reduce(phi) not in respols:
         respols.add(Z.reduce(phi))
@@ -5116,7 +5114,7 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
         # make the inductive valuation
         V = Z.augment(phi,mu)
         VVgraph.add_vertex(V)
-        VVgraph.set_vertex(V,v)        
+        VVgraph.set_vertex(V,v)
         num += 1
         while gcd(num,e) > 1:
           num += 1
@@ -5125,7 +5123,6 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
   while len(VVgraph) < len(G):
     # pick a leaf node of VVgraph to augment
     ss = VVgraph.sinks()
-    ss.sort(key=VVgraph.get_vertex)
     for V in ss:
       v = VVgraph.get_vertex(V)
       if G.out_degree(v) > 0: break
@@ -5135,7 +5132,6 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
     R = V.residue_ring()
 
     ww = G.neighbors_out(v)
-    ww.sort()
 
     # make sure all vertices with same pol_ind have the same f
     pol_inds = set(j for _,j,_,(_,_) in ww)
@@ -5243,7 +5239,7 @@ def polynomial_from_indvals(indval_list, new_vals=None):
     sage: G == H
     True
 
-  Start with a polynomial F whose decomposition graph, G, that looks like this:
+  Start with a polynomial F whose decomposition graph, G, looks like this:
 
     v0(1,6) -> v1(1,1)
 
@@ -5388,8 +5384,8 @@ def polynomial_from_indvals(indval_list, new_vals=None):
   if len(set(ff)) < len(ff):
     raise TypeError('last key polynomials are not distinct')
   
-  # FIXME -- the following definition of Z is bad
-  # if V.stage_zero().keyval() < 0 for some V in indval_list
+  # FIXME -- the following definition of Z is bad if V.stage_zero().keyval() < 0
+  # FIXME -- for some V in indval_list
   Z = StageZeroValuation(indval=indval_list[0])
 
   p = Z.uniformizer()
