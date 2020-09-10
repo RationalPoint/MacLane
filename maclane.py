@@ -4286,6 +4286,7 @@ def p_adic_inductive_valuation(p, name=None, key_polynomial=None, key_value=None
   kwargs['residue_field'] = FFp
   kwargs['reduce_map'] = lambda t: FFp(t)
   kwargs['lift_map'] = lift_map
+  kwargs['check'] = check
   kwargs['collapse'] = collapse
   return InductiveValuation(**kwargs)
 
