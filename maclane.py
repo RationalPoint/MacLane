@@ -5310,8 +5310,8 @@ def polynomial_from_indvals(indval_list, new_vals=None):
                             \          v8(1,1)    v7(2,1)
                              \
                               v9(2,1) -> v10(1,2) -> v11(1,1)
-                               \
-                                v12(1,1)
+                                          \
+                                           v12(1,1)
   ::
 
     sage: G = DiGraph()
@@ -5400,10 +5400,10 @@ def polynomial_from_indvals(indval_list, new_vals=None):
   e = 0
   for f in ff:
     g = fff//f
-    h,u,v = xgcd(f,g)
+    h,a,b = xgcd(f,g)
     if h != 1:
       raise RuntimeError('Something is wrong: distinct key polynomials are not relatively prime!')
-    t = ceil(max(0,-Z(u),-Z(v))/vp)
+    t = ceil(max(0,-Z(a),-Z(b))/vp)
     e = max(e, 1 + floor(max(v/vp, 2*t)))
   # Now ensure that the key values in indval_list can be modified to make F have
   # projection 1.  If new_vals is given, we also construct those modified
@@ -5419,7 +5419,7 @@ def polynomial_from_indvals(indval_list, new_vals=None):
     if V.is_stage_zero():
       W = StageZeroValuation(f,w,indval=V)
     else:
-      W = V.prev().augment(f,w,collapse=False)
+      W = V.prev().augment(f,w,collapse=False, check=True)
     new_vals.append(W)
   q = p**e
   F = fff + q
