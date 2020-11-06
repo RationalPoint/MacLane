@@ -69,6 +69,37 @@ from sage.all import *
 ################################################################################
 
 
+def extension_field_polynomial(E):
+  r"""
+  Return the defining polynomial of an extension field.
+  This accounts for different method names for different extension types.
+
+  INPUT:
+
+  - ``K`` -- an extension field object, satisfying one of th efollowing:
+
+    - K has a ``defining_polynomial`` method
+
+    - K has a ``polynomial`` method
+
+    - K.gen() has a ``minpoly`` method
+
+  OUTPUT:
+
+  - a polynomial over K.base() defining the extension
+
+  """
+  if hasattr(K,'defining_polynomial'):
+    return K.defining_polynomial().change_ring(K.base())
+  if hasattr(K,'polynomial'):
+    return K.polynomial().change_ring(K.base())
+  g = K.gen()
+  if hasattr(g,'minpoly'):
+    return g.minpoly().change_ring(K.base())
+  raise TypeError('cannot get defining polynomial of field')
+
+
+
 def expand_polynomial(f, g):
   r"""
   Return the coefficients of ``f`` when expressed as a polynomial in ``g``.
@@ -93,7 +124,7 @@ def expand_polynomial(f, g):
     {0: 1/4*x + 3, 1: -1/2*x, 2: 1/4*x}
     sage: sum(c * g^i for i,c in cc.items()) == f
     True
-   
+
   """
   R = g.parent()
   try:
@@ -123,7 +154,7 @@ def reduce_at_infinity(f):
   OUTPUT:
 
   - The image of ``f`` in the residue field of `k(x)` at the place at infinity
-    
+
   EXAMPLES::
 
     sage: K = FunctionField(QQ,'x')
@@ -156,8 +187,8 @@ def newton_slopes(val_dict):
 
   OUTPUT:
 
-  - a list of pairs `(m_0,n_0), \ldots, (m_r,n_r)`, where 
-  
+  - a list of pairs `(m_0,n_0), \ldots, (m_r,n_r)`, where
+
     * `m_i` is the slope of the i-th face of the lower convex hull of the points
       in ``val_dict``, and
 
@@ -171,7 +202,7 @@ def newton_slopes(val_dict):
   - Sage's newton_slopes function uses the opposite sign convention.
 
   EXAMPLES::
-  
+
     sage: R.<x> = QQ[]
     sage: f = x^6 + x^4/5 + 5*x
     sage: f.newton_slopes(5,lengths=True)
@@ -217,7 +248,7 @@ def polynomial_from_inductive_valuation(indval):
   - a polynomial G such that ``indval``, or a valuation equivalent to it,
     appears as one of the InductiveValuations in the list returned by
     V0.decomposition(G), where V0 = indval.stage_zero().
-    
+
   EXAMPLES::
 
     sage: R.<x> = QQ[]
@@ -230,7 +261,7 @@ def polynomial_from_inductive_valuation(indval):
     sage: V0.decomposition(G)
     [Stage 2 valuation over 7 with (keypol,keyval) sequence [(x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 8, 3)],
      Stage 2 valuation over 7 with (keypol,keyval) sequence [(x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 8, 2)]]
-    
+
   """
   V = indval
   t = V.relative_ramification_index()
@@ -257,7 +288,7 @@ def polynomial_from_inductive_valuation(indval):
 def inductive_valuation_from_invariants(indval, resdeg_ramind_list):
   r"""
   Return an augmentation of indval with given relative ramification and residue degrees
-  
+
   INPUT:
 
   - ``indval`` -- an inductive valuation on a polynomial ring `K[x]`
@@ -285,12 +316,12 @@ def inductive_valuation_from_invariants(indval, resdeg_ramind_list):
     ....:   resdeg = V.relative_residue_degree()
     ....:   ramind = V.relative_ramification_index()
     ....:   data.append((resdeg,ramind))
-    ....: 
+    ....:
     sage: print(data)
     [(1, 1), (2, 1), (4, 3)]
 
   """
-  V = indval  
+  V = indval
   for f,t in resdeg_ramind_list:
     R = V.residue_ring()
     y = R.gen()
@@ -373,7 +404,7 @@ class ExtensionOfFiniteField(object):
 
   - ``defining_polynomial`` -- a polynomial over ``base_field``, which must be
     irreducible
-  
+
   - ``check_irreducible`` -- boolean (default: False); whether to check that the
     defining polynomial is irreducible over the base
 
@@ -463,7 +494,7 @@ class ExtensionOfFiniteField(object):
 
   def characteristic(self):
     return self._char
-    
+
   def base_degree(self):
     return self._base_deg
 
@@ -558,7 +589,7 @@ class ExtensionOfFiniteField(object):
     - ``f`` -- a polynomial over k = self.base()
 
     OUTPUT:
-    
+
     - the image of f in self.field() = k[x]/(defining_polynomial)
 
     """
@@ -603,7 +634,7 @@ class InductiveValuation(SageObject):
 
   - The following additional keyword arguments are required to initialize a
     stage-0 valuation, but should be omitted if ``previous`` is given:
-    
+
       * ``valuation`` -- optional function computing a discrete valuation on K
         with value group in QQ; if not given, elements of K must have a
         ``valuation`` method, possibly with the uniformizer as argument (as is
@@ -615,7 +646,7 @@ class InductiveValuation(SageObject):
 
       * ``residue_field`` -- residue field k of the valuation on K
 
-      * ``reduce_map`` -- reduction map from K to k; 
+      * ``reduce_map`` -- reduction map from K to k;
 
       * ``lift_map`` -- lifting map from `k` to `K`
 
@@ -624,7 +655,7 @@ class InductiveValuation(SageObject):
         to the class ExtensionOfFiniteField.  The constructor must take inputs:
 
         - ``k1`` -- a field that is a finite extension of k (or k itself)
-        
+
         - ``f`` -- an irreducible polynomial over k1
 
         - ``proof`` -- optional boolean; whether to test that ``f`` is irreducible
@@ -647,7 +678,7 @@ class InductiveValuation(SageObject):
 
    - ``_stages`` --  list of earlier stages (not including `self`)
 
-   - ``_keypol`` --  key polynomial `phi` 
+   - ``_keypol`` --  key polynomial `phi`
 
    - ``_keyval`` --  valuation of key polynomial
 
@@ -704,13 +735,13 @@ class InductiveValuation(SageObject):
 
     * Set `\phi_k` and `\phi_{k-1}` to be the new and previous key polynomials,
       respectively. We may ignore the condition that
-    
+
       ..math:: \deg(\phi_k) \geq \deg(\phi_{k-1})
 
       because otherwise the minimality condition on key polynomials would force `\phi_k`
       to be constant.         ****************  FIXME -- What??
 
-    * We may ignore the condition that 
+    * We may ignore the condition that
 
       ..math:: \deg(\phi_k) \not\sim \deg(\phi_{k-1}) \text{ in V_{k-1}}
 
@@ -724,7 +755,7 @@ class InductiveValuation(SageObject):
                check=False, collapse=True, **kwargs):
 
     if previous is None:
-      
+
       # Set stage-0 from (key_polynomial, key_value), or first pair in key_polval_list
       # Set key_list to the remaining pairs, if any.
       if key_polval_list is not None:
@@ -806,7 +837,7 @@ class InductiveValuation(SageObject):
         b += n
       self._relative_numer_inv = a
       self._relative_denom_inv = b
-    
+
 
     # Find Q with V1(Q) = V(Q) = t*keyval
     t = self._relative_denom
@@ -858,7 +889,7 @@ class InductiveValuation(SageObject):
         unif = K.uniformizer()
         self._intrinsic_uniformizer = True
       except AttributeError:
-        raise TypeError('Unable to determine a uniformizer for the base field')    
+        raise TypeError('Unable to determine a uniformizer for the base field')
     else:
       unif = K(uniformizer)
 
@@ -1026,7 +1057,7 @@ class InductiveValuation(SageObject):
     A key value of ``Infinity`` is represented as ``1/0``.
 
     EXAMPLES::
-    
+
       sage: R.<x> = QQ[]
       sage: polvals = [(x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 8, Infinity)]
       sage: V = p_adic_inductive_valuation(7, key_polval_list=polvals)
@@ -1092,7 +1123,7 @@ class InductiveValuation(SageObject):
     r"""
     Return the valuation of a polynomial or rational function over the base field
     """
-    if f == 0: 
+    if f == 0:
       return Infinity
 
     K = self._base_field
@@ -1107,14 +1138,14 @@ class InductiveValuation(SageObject):
         return self.valuation(num) - self.valuation(den)
       except (AttributeError,TypeError):
         raise ValueError('"f" is not a polynomial or rational function over the base field')
-      
+
     v = Infinity
     K = self._base_field
     W = self.prev()
     mu = self._keyval
     ff = self.expand(f)
     if mu == Infinity:
-      # No contribution from higher degree terms if mu = Infinity      
+      # No contribution from higher degree terms if mu = Infinity
       ff = {0:ff[0]} if 0 in ff else {}
     for i,c in ff.items():
       if c == 0: continue
@@ -1126,7 +1157,7 @@ class InductiveValuation(SageObject):
     return v
 
   def normalized_valuation(self, f):
-    r""" 
+    r"""
     Return the valuation of f with respect to self, normalized to have
     integer values
     """
@@ -1295,7 +1326,7 @@ class InductiveValuation(SageObject):
       sage: c = (1+2*z1) + (3+4*z1)*z2 + (5+6*z1)*z2^2
       sage: V.residue_constant_field_expand(c)
       [[1, 2], [3, 4], [5, 6]]
-      
+
       sage: QQpol.<x> = QQ[]
       sage: f0 = x - 4
       sage: f1 = x^2 - 8*x - 39
@@ -1522,7 +1553,7 @@ class InductiveValuation(SageObject):
       sage: P = V0.keypol(), V1.keypol()
       sage: H == sum(c * p^v * prod(Pi^mi for Pi,mi in zip(P,m)) for c,v,m in s)
       True
-    
+
     """
     if f == 0:
       return []
@@ -1560,10 +1591,10 @@ class InductiveValuation(SageObject):
 
       * `F` is equivalent to ``f``;
 
-      * `F` has the form 
+      * `F` has the form
 
         ..math:: \sum_{(c,v,m) \in s} c p^v \prod_{j=0}^{k} \phi_j^{m_j}
- 
+
         where `c` is an element of valuation 0 in the base field, `v` is an
         integer, `p` is the base field uniformizer, the `\phi_j`'s are the key
         polynomials of the various stages of self, and `m` is a vector of
@@ -1705,12 +1736,12 @@ class InductiveValuation(SageObject):
     OUTPUT:
 
     - a polynomial over the base field that reduces to ``h``
-          
+
     ALGORITHM:
 
     - The residue ring at stage n is R_n = k_n[y], where k_n is a finite
       extension of the stage-0 residue field, given by:
-      
+
       ..math::
 
         k_n = R_{n-1}/(f_n)
@@ -1725,7 +1756,7 @@ class InductiveValuation(SageObject):
 
 
     EXAMPLES::
-    
+
       sage: K.<x> = FunctionField(GF(5))
       sage: Kpol.<y> = K[]
       sage: p = x
@@ -1819,7 +1850,7 @@ class InductiveValuation(SageObject):
       integers of length n+1, for n = self.stage(), satisfying
 
          `v = z \alpha + \displaystyle\sum_{i=0}^n c_i \rho_i, \quad 0 \le c_i < e_i`
-      
+
     where
 
       - `e_i` is the relative ramification index at stage `i`
@@ -1925,7 +1956,7 @@ class InductiveValuation(SageObject):
         polynomial will also have the same valuation in self as in `W`.
 
     EXAMPLES::
-    
+
         sage: V0 = p_adic_inductive_valuation(2,'x')
         sage: V = inductive_valuation_from_invariants(V0,[(1,2),(1,3),(1,5)])
         sage: print(V.str_compact())
@@ -1961,7 +1992,7 @@ class InductiveValuation(SageObject):
         sage: V(f) == 7/30
         True
 
-    
+
     """
     if v == Infinity:
       return self._polring(0)
@@ -1977,10 +2008,10 @@ class InductiveValuation(SageObject):
     z, cc = self.decompose_value(v)
     p = self.base_uniformizer()
     return p**z * prod(W.keypol()**c for W,c in zip(self.iterstages(),cc))
-    
-    
+
+
   ###########################  InductiveValuation  #############################
-  
+
   ## --- GRADED RESIDUE RING ---
   ##
   ## The graded residue ring has the form R = k[s,t,1/t] where s is the image of
@@ -1993,40 +2024,40 @@ class InductiveValuation(SageObject):
   ##       grade(t) = d
   ##
   ##  and  R_0 = k[y]  where y = s^d/t^n.
-  ## 
+  ##
   ## Any element of the value group can be written uniquely as i*n+j*d with i,j
   ## integers and 0<=i<d, and the reduction of an element with that value can be
   ## written uniquely as f(y) * s^i * t^j.  In the code, we represent such an
   ## element of R as a triple (f,i,j), with f in self.residue_ring().
-  ## 
+  ##
   ## The following methods are provided:
-  ## 
+  ##
   ## - graded_map
   ##     Computes the map of graded residue rings, from previous stage to
   ##     current stage, whose image is k[t,1/t].
-  ##     
+  ##
   ## - graded_map_lift
   ##     Computes the inverse of graded_map on the subring k[t,1/t].
-  ##     
+  ##
   ## - graded_reduction
   ##     Computes the graded residue image of a polynomial in K[x]
-  ##     
+  ##
   ## - graded_reduction_lift
   ##     Computes the unique homogeneous-form preimage of graded_reduction.
-  ## 
-  ## 
+  ##
+  ##
   ## The map from the previous graded residue ring is computed as follows. If
   ## the previous ring is R' = k'[s',t',1/t'], then k = k'[z]/(f(z)) where f is
   ## the image in R' of the current key polynomial.  If a'n'+b'd' = 1, where
   ## n',d' are previous stage numerator and denominator and 0<=a'<d', then the
   ## map is given by
-  ##     
+  ##
   ##         s' |--> t^n' z^b
-  ##        
+  ##
   ##         t' |--> t^d' / z^a
-  ## 
+  ##
   ## A lift of this is given by      FIXME -- Oh no!!!!!  Finish the sentence!
-  
+
 
   def graded_map(self, f, i, j):
     r"""
@@ -2086,7 +2117,7 @@ class InductiveValuation(SageObject):
   def graded_map_lift(self, c, m):
     r"""
     Lift an element in graded residue ring to previous-stage graded residue ring.
-    
+
     The graded residue ring has the form `k[s,t,1/t]`, and the elements that
     lift to the previous stage are the ones of the form `c t^m` with `c \in k`
     and `j \in \ZZ`.
@@ -2150,11 +2181,11 @@ class InductiveValuation(SageObject):
       graded residue ring k[s,t,1/t], where
 
         * D = self._denom  [ = self.ramification_index() * self.base_uniformizer_value() ]
-      
+
         * d = self.relative_ramification_index()
-      
+
         * n = self.keyval() * D
-      
+
         * v = (i*n+j*d)/D
 
     METHOD:
@@ -2162,7 +2193,7 @@ class InductiveValuation(SageObject):
     If `\rho` is the reduction map, `\phi` the key polynomial and `\pi` a
     uniformizer for the previous stage, the residue ring is `k[s,t,1/t]`
     where
-    
+
       * `s = \rho(\phi)`   has grade `n/D`
 
       * `t = \rho(\pi)`    has grade `d/D`
@@ -2170,7 +2201,7 @@ class InductiveValuation(SageObject):
     and any homogeneous element of grade N/D has the form
 
     ..math::
-    
+
       s^{i_0} t^{j_0} H(s^d/t^n)
 
     where `i_0,j_0` are the unique integers with `i_0*n+j_0*d=N` and
@@ -2188,7 +2219,7 @@ class InductiveValuation(SageObject):
     reduce `c` with respect to the previous stage, as a homogeneous element of
     the residue ring k0[s_0,t_0,1/t_0], expressed analogously to the above, and
     then call self.graded_map() to get an element of `k[t,1/t]`.
-    
+
 
     """
     R = self._residue_ring
@@ -2216,12 +2247,12 @@ class InductiveValuation(SageObject):
       return R(c0),0,j,v
 
     # Finite key value
-    
+
     ff = {}
     d = self._relative_denom
     n = self._relative_numer
     ninv = n.inverse_mod(d)
-    
+
     # Stage zero
     if self.is_stage_zero():
       V = self._base_valuation
@@ -2329,7 +2360,7 @@ class InductiveValuation(SageObject):
         else:
           jnum = vnum - i*n
           if jnum % d != 0:
-            raise ValueError('Given values of i and v are incompatible') 
+            raise ValueError('Given values of i and v are incompatible')
           j = jnum//d
 
     if i < 0:
@@ -2351,7 +2382,7 @@ class InductiveValuation(SageObject):
         C = prev.graded_reduction_lift(f0,i0,j0)
       F += C * phi**ii
     return F
-    
+
 
   ###########################  InductiveValuation  #############################
 
@@ -2477,7 +2508,7 @@ class InductiveValuation(SageObject):
 
     OUTPUT:
 
-    - a list of pairs `(m_0,n_0), \ldots, (m_r,n_r)`, where 
+    - a list of pairs `(m_0,n_0), \ldots, (m_r,n_r)`, where
 
       * `m_i` is the slope of the i-th face of the lower convex hull of the
         Newton polygon for the ``P``-expansion of ``f``;
@@ -2485,9 +2516,9 @@ class InductiveValuation(SageObject):
       * `n_i` is the x-axis projection length of the i-th face.
 
       We have `m_0 < m_1 < \cdots < m_r`. The first slope is `m_0 = -Infinity` if
-      the constant coefficient of the ``P``-expansion of ``f`` is 0. 
+      the constant coefficient of the ``P``-expansion of ``f`` is 0.
 
-    """  
+    """
     if P is None:
       P = self._keypol
     cc = expand_polynomial(f,P)
@@ -2497,7 +2528,7 @@ class InductiveValuation(SageObject):
   def new_values(self, G, P):
     r"""
     Return all values v that lead to G-approximants for self with key polynomial P
-    
+
     INPUT:
 
     - ``G`` -- a polynomial over the base field
@@ -2536,7 +2567,7 @@ class InductiveValuation(SageObject):
 
     OUTPUT:
 
-    - A list of pairs `(P,v)` where 
+    - A list of pairs `(P,v)` where
 
       * `P` is a key polynomial over self that is an
       equivalence factor of ``G``; and
@@ -2589,7 +2620,7 @@ class InductiveValuation(SageObject):
     REFERENCES:
 
     -  [MacLane-1], Sections 4, 6, 15
-   
+
     EXAMPLES::
 
       sage: K.<x> = FunctionField(GF(5))
@@ -2609,7 +2640,7 @@ class InductiveValuation(SageObject):
     kwargs = {}
     kwargs['key_polynomial'] = keypol
     kwargs['key_value'] = keyval
-    
+
     if check:
       if not self.is_key(keypol):
         raise ValueError('keypol is not a key polynomial')
@@ -2703,7 +2734,7 @@ class InductiveValuation(SageObject):
     name = 'is_key'
     vf = self.valuation(f)
     cc = self.expand(f)
-    n = max(cc)    
+    n = max(cc)
     if cc[n] != 1:
       # not monic
       return False
@@ -2747,7 +2778,7 @@ class InductiveValuation(SageObject):
     NOTE:
 
     - We compute the projection length as max(ii) - min(ii) where ii are the
-      indices i such that self( a_i*P^i ) = self(G), where P=self._keypol and 
+      indices i such that self( a_i*P^i ) = self(G), where P=self._keypol and
       G = sum_i a_i P^i.
 
     EXAMPLES::
@@ -2816,8 +2847,8 @@ class InductiveValuation(SageObject):
     S = self._stages[1:] + [self]
     if all(V.prev().keypol_degree() < V.keypol_degree() for V in S):
       return self
-    
-    # Proceed recursively. 
+
+    # Proceed recursively.
     W = self.prev().collapse()
     if W.keypol_degree() != self.keypol_degree():
       return W.augment(self._keypol,self._keyval)
@@ -2894,7 +2925,7 @@ class InductiveValuation(SageObject):
         sage: R.<x> = QQ[]
         sage: G = x^4 + 4 # Newton slope -1/2
         sage: G.factor() # Reducible!
-        (x^2 - 2*x + 2) * (x^2 + 2*x + 2) 
+        (x^2 - 2*x + 2) * (x^2 + 2*x + 2)
         sage: V = p_adic_inductive_valuation(p, key_polynomial=x, key_value=1/2)
         sage: V.decomposition(G,collapse=False)
         [Stage 2 valuation over 2 with (keypol,keyval) sequence [(x, 1/2), (x^2 + 2, 3/2), (x^2 + 2*x + 2, +Infinity)],
@@ -2933,7 +2964,7 @@ class InductiveValuation(SageObject):
 
     """
     return self.valuation(f-g) > self.valuation(f)
-    
+
 
   def is_equiv_divisible_by_key(self, f, key=None):
     r"""
@@ -3015,7 +3046,7 @@ class InductiveValuation(SageObject):
       prev = self._stages[-1]
 
     val = Infinity
-    eff_deg = -Infinity    
+    eff_deg = -Infinity
     for k, c in coefs:
       new_val = self._keyval*k + prev(c)
       if new_val <= val:
@@ -3056,7 +3087,7 @@ class InductiveValuation(SageObject):
 
     """
     return self.effective_degree(f) == 0
-  
+
 
   def equiv_inverse(self, f, check=True):
     r"""
@@ -3109,11 +3140,11 @@ class InductiveValuation(SageObject):
 
 
   ###########################  InductiveValuation  #############################
-    
+
   def equal_valuation(self, other):
     r"""
     Test equality as valuations.
-    
+
     To be equal, self.collapse() and other.collapse() must have the same base
     field, and the same uniformizer with the same valuation (so the value groups
     are equal), and the same number of stages; and at each stage the the key
@@ -3182,7 +3213,7 @@ class InductiveValuation(SageObject):
   def __eq__(self, other):
     r"""
     Test equality as inductive valuations.
-    
+
     To be equal, self and other must have the same base field and uniformizer
     with the same valuation (so the value groups are equal), and the same
     sequences of key polynomials and key values.
@@ -3456,22 +3487,21 @@ class ExtensionFieldValuation(SageObject):
       sage: V.reduce(f/5) == 0
       True
 
-      
+
   """
   _class_name = 'maclane.ExtensionFieldValuation'
 
   def __init__(self, field, indval, polynomial=None, lift_to_polring=None, ident=None, decomp_obj=None):
-    K = field.base_field()
+    K = field.base()
     V = indval
     if K is not V.base_field():
       raise ValueError('Base fields of "field" and "indval" do not agree.')
     if polynomial is not None:
       G = polynomial
     else:
-      G = field.polynomial()
+      G = extension_field_polynomial(field)
     polring = V.polring()
-    if G.parent() is not polring:
-      raise ValueError('"field" is not defined by a polynomial in domain of "indval".')
+    G = polring(G)
 
     self._field = field
     self._indval = V
@@ -3491,18 +3521,16 @@ class ExtensionFieldValuation(SageObject):
       self._lift_to_polring = lift_to_polring
     else:
       msg = 'Unable to determine a lift map to polynomial ring.'
-      x = polring.gen()
-      x_name = str(x)
       if t in K:
         # Case of a degree-1 extension
-        self._lift_to_polring = lambda y: y        
+        self._lift_to_polring = lambda y: K(y)
       elif hasattr(t,'polynomial'):
-        self._lift_to_polring = lambda y: y.polynomial(x_name)
-        if self._lift_to_polring(t) != x:
+        self._lift_to_polring = lambda y: polring(y.polynomial())
+        if self._lift_to_polring(t) != polring.gen():
           raise TypeError(msg)
       else:
         raise TypeError(msg)
-        
+
     # If the last key value is not Infinity, we prepare "augmented" inductive
     # valuations with at least one more stage's worth of information.
     if V.keyval() == Infinity:
@@ -3553,8 +3581,8 @@ class ExtensionFieldValuation(SageObject):
     if U.keyval() == Infinity:
       return U(f)
 
-    # By Theorem 5.1 of [MacLane-1], we can write f = q*phi + r with 
-    # phi = V.keypol(). Then V(f) = W(f) if and only if W(r) = W(f). 
+    # By Theorem 5.1 of [MacLane-1], we can write f = q*phi + r with
+    # phi = V.keypol(). Then V(f) = W(f) if and only if W(r) = W(f).
     W,V = self._augmented_indvals
     q,r = f.quo_rem(V.keypol())
     Wf = W(f)
@@ -3567,7 +3595,7 @@ class ExtensionFieldValuation(SageObject):
       Wf = Vf
       Wr = W(r)
     return Wf
-      
+
   ########################  ExtensionFieldValuation  ###########################
 
   def lift_to_polring(self, elt):
@@ -3611,7 +3639,7 @@ class ExtensionFieldValuation(SageObject):
     v = self(elt) # non-normalized valuation
     pi_val = self._indval.uniformizer_valuation()
     return ZZ(v / pi_val)
-    
+
   ########################  ExtensionFieldValuation  ###########################
 
   def field(self):
@@ -3639,7 +3667,7 @@ class ExtensionFieldValuation(SageObject):
     return self._defining_poly
 
   ########################  ExtensionFieldValuation  ###########################
-    
+
   def residue_degree(self):
     r"""
     Return the residue degree of self over the valuation of the base field
@@ -3694,7 +3722,7 @@ class ExtensionFieldValuation(SageObject):
     if V.keyval() == Infinity:
       return V.reduce(f)
     _,W = self._augmented_indvals
-    return W.reduce(f).constant_coefficient() 
+    return W.reduce(f).constant_coefficient()
 
   def lift(self, elt):
     r"""
@@ -3763,16 +3791,16 @@ class ExtensionFieldValuation(SageObject):
       raise NotImplementedError(msg)
 
     polring = self._polring
-    V0 = self._indval.stage_zero()    
+    V0 = self._indval.stage_zero()
     R = polring([self.lift(c) for c in list(Rres)])
     assert self(R(y)) > 0
-    
-    e = self.ramification_index()    
+
+    e = self.ramification_index()
     if e*self(R(y)) > 1:
       y += self.uniformizer()
     assert e * self(R(y)) == 1, 'valuation is {}'.format(e*self(R(y)))
     return y
-      
+
   def different_valuation(self):
     r"""
     Return the normalized local different valuation
@@ -3782,7 +3810,7 @@ class ExtensionFieldValuation(SageObject):
     - In the tame case, this is given by the ramification index - 1. In the wild
       case, we use the formula of [Serre], Chapter III.6, Corollaire 2.
 
-    """    
+    """
     p = self.residue_field().characteristic()
     e = self.ramification_index()
 
@@ -3832,7 +3860,7 @@ class ExtensionFieldValuation(SageObject):
     """
     pi = self.base_uniformizer()
     return pi**(self.residue_degree() * self.different_valuation())
-  
+
   ########################  ExtensionFieldValuation  ###########################
 
   def __eq__(self, other):
@@ -3853,17 +3881,9 @@ class ExtensionFieldValuation(SageObject):
       return []
     return [E.inductive_valuation() for E in D._extvals if E is not self]
 
-  def ideal_power_generator(self, all_valuations=None):
+  def ideal_power_generator(self):
     r"""
     Return an element with positive valuation, and valution 0 at other extensions.
-
-    INPUT:
-
-    - ``all_valuations`` -- list of ExtensionFieldValuation objects that
-      comprise all the extensions of the base-field valuation to self.field(),
-      optionally excluding self.  This list may be omitted if
-      ideal_power_generator has been called previously, or if self is a terminal
-      inductive valuation (has key value Infinity).
 
     OUTPUT:
 
@@ -3871,13 +3891,11 @@ class ExtensionFieldValuation(SageObject):
 
       * self(f) > 0
 
-      * V(f) = 0 for V != self, V in all_valuations
+      * V(f) = 0 for V != self in self.other_valuations()
 
     EFFECT:
 
-    - The element f is stored as self._ideal_power_generator, and corresponding
-      attributes of all V in other_valuations are also set if not already
-      present.
+    - The element f is stored as self._ideal_power_generator.
 
     EXAMPLES::
 
@@ -3887,16 +3905,16 @@ class ExtensionFieldValuation(SageObject):
       sage: VV = E.extvals()
 
       sage: for V in VV:
-      ....:   print(V.ideal_power_generator(VV))
+      ....:   print(V.ideal_power_generator())
       z - 21
       z^2 - 27*z - 26
 
       sage: for V in VV:
-      ....:   f = V.ideal_power_generator(VV)
+      ....:   f = V.ideal_power_generator()
       ....:   print([W.normalized_valuation(f) for W in VV])
       [2, 0]
       [0, 3]
-    
+
     """
     if self._ideal_power_generator is not None:
       return self._ideal_power_generator
@@ -4000,7 +4018,7 @@ class ExtensionFieldValuation(SageObject):
       sage: K = VV[0].field()
       sage: z = K.gen()
       sage: print([(P.norm().factor(), e) for P,e in K.ideal(7).factor()])
-      [(7^2, 1), (7, 1)]    
+      [(7^2, 1), (7, 1)]
 
       sage: for V in VV:
       ....:   print(V.ideal_generators())
@@ -4018,7 +4036,7 @@ class ExtensionFieldValuation(SageObject):
       ....:   print([(P.norm().factor(),e) for P,e in fac])
       [(7, 1), (199, -1)]
       [(7^2, 1)]
-    
+
     """
     if self._ideal_generators is not None:
       return self._ideal_generators
@@ -4086,7 +4104,7 @@ class ExtensionFieldDecomposition(object):
   - ``field_or_polynomial`` -- a finite extension of or polynomial over a field K
 
   - ``collapse`` -- boolean (default: True) whether to collapse redundant stages
-  
+
   - ``sort_order`` -- string (default: 'resdeg-keycoefs') specifies which sort order to use
     for the valuations.  Allowed values are:
 
@@ -4121,7 +4139,8 @@ class ExtensionFieldDecomposition(object):
 
     if isinstance(field_or_polynomial, Field):
       L = field_or_polynomial
-      F = R(L.polynomial())
+      Lpol = extension_field_polynomial(L)
+      F = R(Lpol)
     elif isinstance(field_or_polynomial, Polynomial):
       F = R(field_or_polynomial)
       L = K.extension(F,R._names)
@@ -4164,7 +4183,7 @@ class ExtensionFieldDecomposition(object):
       WW.sort(key=sort_key)
 
     EE = []
-    for i,W in enumerate(WW):    
+    for i,W in enumerate(WW):
       kwargs = {'lift_to_polring':lift, 'ident':i, 'decomp_obj':self}
       EE.append(ExtensionFieldValuation(L,W,**kwargs))
     self._extvals = tuple(EE)
@@ -4278,7 +4297,7 @@ def p_adic_inductive_valuation(p, name=None, key_polynomial=None, key_value=None
   def lift_map(y):
     Ry = R(y)
     return Ry if 2*Ry <= ZZ(p) else Ry - p
-      
+
   kwargs = {}
   kwargs['key_polval_list'] = key_polval_list
   kwargs['valuation'] = lambda t: t.valuation(p)
@@ -4292,7 +4311,7 @@ def p_adic_inductive_valuation(p, name=None, key_polynomial=None, key_value=None
 
 ################################  Applications  ################################
 
-def p_adic_decomposition(p, target_poly, name=None, collapse=True, **kwargs):
+def p_adic_decomposition(p, field_or_polynomial, name=None, collapse=True, **kwargs):
   r"""
   Return a complete list of extensions of the p-adic valuation to QQ[x] / (target_poly)
 
@@ -4300,10 +4319,10 @@ def p_adic_decomposition(p, target_poly, name=None, collapse=True, **kwargs):
 
   - ``p`` -- a rational prime
 
-  - ``target_poly`` -- a polynomial `G` over QQ
+  - ``field_or_polynomial`` -- a finite extension K or irreducible polynomial G over QQ
 
-  - ``name`` -- optional name for the image of `x` in `QQ[x] / (target_poly)`;
-    defaults to name of the variable in``target_poly``
+  - ``name`` -- optional name for the image of `x` in `QQ[x] / (G)` if G is given;
+    defaults to name of the variable in G; ignored if field_or_polynomial is a field.
 
   - ``collapse`` -- boolean (default: True) whether to collapse stages when possible
 
@@ -4336,14 +4355,19 @@ def p_adic_decomposition(p, target_poly, name=None, collapse=True, **kwargs):
       (Valuation 0 over 5 with (f,e)=(1,1) on Number Field in y with defining polynomial y - 1,)
       sage: [V(y+4) for V in VV]
       [1]
-    
+
   """
-  R = target_poly.parent().change_ring(QQ)
-  target_poly = R(target_poly)
-  V = p_adic_inductive_valuation(p,R.variable_name())
-  if name is None:
-    name, = R._names
-  L = NumberField(target_poly,name)
+  if isinstance(field_or_polynomial,Polynomial):
+    G = field_or_polynomial
+    R = G.parent().change_ring(QQ)
+    G = R(G)
+    if name is None:
+      name, = R._names
+    L = NumberField(G,name)
+  else:
+    L = field_or_polynomial
+    name = str(L.gen())
+  V = p_adic_inductive_valuation(p,name)
   return ExtensionFieldDecomposition(L,indval=V,collapse=collapse,**kwargs)
 
 
@@ -4399,7 +4423,7 @@ def number_field_decomposition(K, p, leading_coef_factors=None, **kwargs):
   name = K.variable_name()
   G = K.defining_polynomial()
   G *= G.denominator()
-  
+
   LL = leading_coef_factors
   if LL is None:
     c = ZZ(G.leading_coefficient())
@@ -4409,7 +4433,7 @@ def number_field_decomposition(K, p, leading_coef_factors=None, **kwargs):
       E = p_adic_decomposition(q,G,name)
       LL.extend(E.extvals())
 
-  E = p_adic_decomposition(p, G, name, **kwargs)
+  E = p_adic_decomposition(p, K, name, **kwargs)
   VV = E.extvals()
   fac = []
   for V in VV:
@@ -4438,7 +4462,7 @@ def function_field_inductive_valuation(p, name=None, key_polynomial=None, key_va
                                        extension_constructor=None):
   r"""
   Return the stage-0 inductive valuation extending the p(x)-adic valuation on K = k(x).
-  
+
   INPUT:
 
   - ``p`` -- a prime element of a rational function field `K` in one variable
@@ -4717,7 +4741,7 @@ def compute_vertex_positions(G, expansion=1):
       pos[v] = (expansion*(n-x),y)
   G.set_pos(pos)
 
-#######################  CONSTRUCTION AND VISUALIZATION  #######################  
+#######################  CONSTRUCTION AND VISUALIZATION  #######################
 
 def sort_indvals(indval_list):
   r"""
@@ -4784,7 +4808,7 @@ def sort_decomp_graph(G):
     sage: G.add_edge(v1,v5)
     sage: G.add_edges([(v6,v7),(v7,v8)])
     sage: G.add_edge(v7,v9)
-    sage: H = sort_decomp_graph(G) 
+    sage: H = sort_decomp_graph(G)
     sage: H.edges(labels=False)
     [((0, 0, None, (1, 1)), (1, 0, None, (1, 2))),
      ((1, 0, None, (1, 2)), (2, 0, 0, (1, 1))),
@@ -4795,7 +4819,7 @@ def sort_decomp_graph(G):
      ((5, 0, None, (2, 2)), (8, 0, None, (2, 1))),
      ((8, 0, None, (2, 1)), (9, 0, 4, (2, 1)))]
 
-  
+
   """
   paths = []
   leaves = sorted(G.sinks(),key=lambda v: v[2])
@@ -4827,7 +4851,7 @@ def sort_decomp_graph(G):
       I.setdefault(i,len(I))
   # make the new graph
   H = DiGraph()
-  Hvert = {} 
+  Hvert = {}
   for v in G.vertices():
     if G.in_degree(v) > 0:
       u = G.neighbors_in(v)[0]
@@ -4879,7 +4903,7 @@ def decomp_graph(arg, collapse=False, sort=True, expansion=1, **kwargs):
     correspond to the stages of the inductive valuations in VV, with an edge V->W
     whenever V is W.prev().  The actual vertices of G are strings of the form
     ``(i, pol_ind, VV_ind, (f,e))`` where:
-    
+
     * ``i`` is the index of the vertex, corresponding to an inductive valuation
       V occuring as a stage in one or more entries of VV; Note that ordering of
       the vertices is arbitrary.
@@ -4888,7 +4912,7 @@ def decomp_graph(arg, collapse=False, sort=True, expansion=1, **kwargs):
       (in some fixed but arbitrary order) of:
 
       + all the children of V.prev(), if V is not stage-zero; or
-      
+
       + all the stage-zero predecessors of entries of VV, if V is stage-zero;
 
     * ``VV_ind`` is the index of V in VV if the vertex is a leaf node, or None if
@@ -4929,7 +4953,7 @@ def decomp_graph(arg, collapse=False, sort=True, expansion=1, **kwargs):
     1 0 (0, 0, None, (1, 1))
     1 1 (1, 0, None, (2, 2))
     1 2 (3, 0, 1, (1, 1))
-    
+
     sage: F = 224*x^5 + 7504*x^4 - 1072*x^3 - 5360*x^2 + 60032*x - 469
     sage: V = p_adic_inductive_valuation(2,'x')
     sage: G,_ = decomp_graph(F, indval=V)
@@ -5075,7 +5099,7 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
   kw['key_polynomial'] = None
   kw['key_value'] = None
   Z = StageZeroValuation(**kw)
-  
+
   VVgraph = DiGraph()
 
   all_keypols = set()
@@ -5193,7 +5217,7 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
       VVgraph.add_vertex(W)
       VVgraph.set_vertex(W,w)
       VVgraph.add_edge(V,W)
-      
+
   VV = VVgraph.sinks()
   VV.sort(key=VVgraph.get_vertex)
 
@@ -5302,7 +5326,7 @@ def polynomial_from_indvals(indval_list, new_vals=None):
     sage: G1,_ = decomp_graph(F,sort=False,indval=Z)
     sage: G1 == G
     True
-  
+
   Try a crazy example.
 
     v0(1,1) -> v1(2,1) -> v2(1,1) -> v3(1,1) -> v4(1,1) -> v5(1,2) -> v6(1,1)
@@ -5385,7 +5409,7 @@ def polynomial_from_indvals(indval_list, new_vals=None):
   ff = [V.keypol() for V in indval_list]
   if len(set(ff)) < len(ff):
     raise TypeError('last key polynomials are not distinct')
-  
+
   # FIXME -- the following definition of Z is bad if V.stage_zero().keyval() < 0
   # FIXME -- for some V in indval_list
   Z = StageZeroValuation(indval=indval_list[0])
@@ -5419,7 +5443,7 @@ def polynomial_from_indvals(indval_list, new_vals=None):
     if V.is_stage_zero():
       W = StageZeroValuation(f,w,indval=V)
     else:
-      W = V.prev().augment(f,w,collapse=False, check=True)
+      W = V.prev().augment(f,w,collapse=False,check=True)
     new_vals.append(W)
   q = p**e
   F = fff + q
