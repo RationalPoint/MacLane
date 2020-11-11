@@ -69,14 +69,14 @@ from sage.all import *
 ################################################################################
 
 
-def extension_field_polynomial(E):
+def extension_field_polynomial(K):
   r"""
   Return the defining polynomial of an extension field.
   This accounts for different method names for different extension types.
 
   INPUT:
 
-  - ``K`` -- an extension field object, satisfying one of th efollowing:
+  - ``K`` -- an extension field object, satisfying one of the following:
 
     - K has a ``defining_polynomial`` method
 
@@ -5478,3 +5478,8 @@ def polynomial_from_decomp_graph(G, **stage_zero_kwargs):
   VV = indvals_from_decomp_graph(G, **stage_zero_kwargs)
   return polynomial_from_indvals(VV)
 
+
+################################################################################
+################################################################################
+################################################################################
+# End of File
