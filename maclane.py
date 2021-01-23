@@ -488,6 +488,8 @@ class ExtensionOfFiniteField(object):
     self._abs_mat = M
     self._abs_mat_inv = M**-1
 
+  #########################  ExtensionOfFiniteField  ###########################
+
   def __repr__(self):
     s = 'Degree-{} extension of GF({}^{}) with defining polynomial {}'
     return s.format(self._deg, self._char, self._base_deg, self._defpol)
@@ -533,6 +535,8 @@ class ExtensionOfFiniteField(object):
       return self._field(base_elt)
     pol = base_elt.polynomial()
     return pol(self._base_gen)
+
+  #########################  ExtensionOfFiniteField  ###########################
 
   def lift(self, field_elt):
     r"""
@@ -1725,13 +1729,16 @@ class InductiveValuation(SageObject):
     return self._residue_ring(reduced_coefs)
 
 
+  ###########################  InductiveValuation  #############################
+
   def lift(self, h):
     r"""
     Return a polynomial over the base which reduces to given element of the residue ring.
 
     INPUT:
 
-    - ``h`` -- a polynomial in the residue ring
+    - ``h`` -- an element of the residue ring; this is a polynomial over a
+      finite field, or a finite field element if self._keyval is Infinity
 
     OUTPUT:
 
@@ -1766,15 +1773,26 @@ class InductiveValuation(SageObject):
       sage: V0.lift(h) == (1/x)*G
       True
 
+    Check that it works when key value is Infinity::
+
+      sage: V1 = function_field_inductive_valuation(p, key_polynomial=y, key_value=Infinity)
+      sage: R = V1.residue_ring()
+      sage: R
+      Finite Field of size 5
+      sage: h = R(3)
+      sage: V1.lift(h)
+      3
+
     """
     Kpol = self._polring
     if h == 0:
       return Kpol(0)
+    keyval_is_infty = (self._keyval == Infinity)
     # lift coefficients into previous residue ring
     if self.is_stage_zero():
       prev_res_ring = self._residue_constant_field
       prev_lift = self._base_lift
-      hh = list(h)
+      hh = [h] if keyval_is_infty else list(h)
     else:
       prev = self.prev()
       prev_res_ring = prev._residue_ring
@@ -1783,7 +1801,8 @@ class InductiveValuation(SageObject):
       if self._keyval == Infinity:
         hh = [lift_const(h)]
       else:
-        hh = [lift_const(u) for u in list(h)]
+        hlist = [h] if keyval_is_infty else list(h)
+        hh = [lift_const(u) for u in hlist]
     # lift from previous residue ring
     cc = [ prev_lift(u) for u in hh ]
     # construct polynomial in genlift
@@ -4281,7 +4300,7 @@ def p_adic_inductive_valuation(p, name=None, key_polynomial=None, key_value=None
     if key_polynomial is None:
       if name is None:
         raise TypeError('Specify "name" if no polynomial is given')
-      R = PolynomialRing(QQ,name)
+      R = PolynomialRing(QQ,name=name)
       key_polynomial = R.gen()
     if key_value is None:
       key_value = ZZ(0)
@@ -4366,8 +4385,9 @@ def p_adic_decomposition(p, field_or_polynomial, name=None, collapse=True, **kwa
     L = NumberField(G,name)
   else:
     L = field_or_polynomial
-    name = str(L.gen())
-  V = p_adic_inductive_valuation(p,name)
+    if name is None:
+      name, = L._names
+  V = p_adic_inductive_valuation(p,name=name)
   return ExtensionFieldDecomposition(L,indval=V,collapse=collapse,**kwargs)
 
 
