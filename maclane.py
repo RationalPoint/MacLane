@@ -1789,20 +1789,17 @@ class InductiveValuation(SageObject):
       return Kpol(0)
     keyval_is_infty = (self._keyval == Infinity)
     # lift coefficients into previous residue ring
+    hlist = [h] if keyval_is_infty else list(h)
     if self.is_stage_zero():
       prev_res_ring = self._residue_constant_field
       prev_lift = self._base_lift
-      hh = [h] if keyval_is_infty else list(h)
+      hh = hlist
     else:
       prev = self.prev()
       prev_res_ring = prev._residue_ring
       prev_lift = prev.lift
       lift_const = self._residue_extension.lift
-      if self._keyval == Infinity:
-        hh = [lift_const(h)]
-      else:
-        hlist = [h] if keyval_is_infty else list(h)
-        hh = [lift_const(u) for u in hlist]
+      hh = [lift_const(u) for u in hlist]
     # lift from previous residue ring
     cc = [ prev_lift(u) for u in hh ]
     # construct polynomial in genlift
