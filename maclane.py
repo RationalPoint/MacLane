@@ -815,7 +815,6 @@ class InductiveValuation(SageObject):
     - uniformizer_valuation
     - stage_zero
     - is_stage_zero
-    - valuation_at_stage
     - stage
     - prev
     - _expand_all
@@ -1323,7 +1322,11 @@ class InductiveValuation(SageObject):
     r"""
     Return the stage-i predecessor of self.
     """
-    return self.valuation_at_stage(i)
+    if i > len(self._stages):
+      raise ValueError('No stage-{} valuation associated with self.'.format(i))
+    if i == len(self._stages):
+      return self
+    return self._stages[i]
 
   def base_field(self):
     r"""
@@ -1582,23 +1585,13 @@ class InductiveValuation(SageObject):
     r"""
     Return the stage-0 valuation associated to self
     """
-    return self.valuation_at_stage(0)
+    return self[0]
 
   def is_stage_zero(self):
     r"""
     Return True if self is a stage-0 valuation
     """
     return len(self._stages)==0
-
-  def valuation_at_stage(self, n):
-    r"""
-    Return the stage-n valuation associated to self
-    """
-    if n > len(self._stages):
-      raise ValueError('No stage-{} valuation associated with self.'.format(n))
-    if n == len(self._stages):
-      return self
-    return self._stages[n]
 
   def stage(self):
     r"""
@@ -1735,13 +1728,13 @@ class InductiveValuation(SageObject):
       w = v * pval # valuation of c*p^v
       for j, mj in enumerate(m):
         if mj == 0: continue
-        w += mj * self.valuation_at_stage(j)._keyval
+        w += mj * self[j]._keyval
       if w > vf:
         # omit this term
         continue
       # add this term
       c = V0._base_lift(V0._base_reduce(c)) # find representative of c
-      F += c * p**v * prod(self.valuation_at_stage(j)._keypol**mj for j,mj in enumerate(m))
+      F += c * p**v * prod(self[j]._keypol**mj for j,mj in enumerate(m))
     return F
 
   ###########################  InductiveValuation  #############################
