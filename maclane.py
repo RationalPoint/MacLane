@@ -1075,7 +1075,9 @@ class InductiveValuation(SageObject):
     if keyval==Infinity:
       self._denom = base_unif_val.denominator()
       self._relative_denom = t = ZZ(1)
+      self._relative_denom_inv = ZZ(1)
       self._relative_numer = Infinity
+      self._relative_numer_inv = ZZ(0)
       self._uniformizer_val = base_unif_val
       self._Q = polring(0) # Residue ring is a field
       self._genlift = polring(0) # Residue ring is a field
@@ -1772,53 +1774,12 @@ class InductiveValuation(SageObject):
 
 
     """
-    V = self.valuation
-    v = V(H)
+    h,_,_,v = self.graded_reduction(H)
     if v<0:
       raise ValueError('cannot reduce element of negative valuation')
     if v>0:
       return self._residue_ring(0)
-
-    # If stage-0, reduce coefficients of expansion with base_reduce.
-    # Otherwise, map coefficients to prev().residue_ring with prev().reduce,
-    # then use residue_extension.reduce().
-
-    if self._keyval == Infinity:
-      # only need the degree-0 coefficient
-      H0 = H.mod(self._keypol)
-      if self.is_stage_zero():
-        c = self._base_field(H0)
-        return self._base_reduce(c)
-      c = self.prev().reduce(H0)
-      return self._residue_extension.reduce(c)
-
-    Q = self._Q
-    mu = self._keyval
-    t = self._relative_denom
-    hh = {i:c for i,c in self.expand(H).items() if i % t == 0} # terms of degree ti = t*i
-
-    # get the coefficients to reduce
-    coefs = {}
-    for ti,h_ti in hh.items():
-      w = V(h_ti) if ti == 0 else V(h_ti) + ti*mu
-      if w > 0: continue
-      i = ZZ(ti//t)
-      if i == 0:
-        c = h_ti
-      else:
-        c = h_ti * Q**i # has valuation 0 since V(Q) = t*mu
-      coefs[i] = c
-
-    # reduce the coefficients
-    if self.is_stage_zero():
-      K = self._base_field
-      reduced_coefs = {i:self._base_reduce(K(c)) for i,c in coefs.items()}
-    else:
-      prev_red = self.prev().reduce
-      reduced_coefs = {i:self._residue_extension.reduce(prev_red(c)) for i,c in coefs.items()}
-
-    # return the polynomial with these coefficients
-    return self._residue_ring(reduced_coefs)
+    return h
 
 
   ###########################  InductiveValuation  #############################
@@ -1876,28 +1837,7 @@ class InductiveValuation(SageObject):
       3
 
     """
-    Kpol = self._polring
-    if h == 0:
-      return Kpol(0)
-    keyval_is_infty = (self._keyval == Infinity)
-    # lift coefficients into previous residue ring
-    hlist = [h] if keyval_is_infty else list(h)
-    if self.is_stage_zero():
-      prev_res_ring = self._residue_constant_field
-      prev_lift = self._base_lift
-      hh = hlist
-    else:
-      prev = self.prev()
-      prev_res_ring = prev._residue_ring
-      prev_lift = prev.lift
-      lift_const = self._residue_extension.lift
-      hh = [lift_const(u) for u in hlist]
-    # lift from previous residue ring
-    cc = [ prev_lift(u) for u in hh ]
-    # construct polynomial in genlift
-    Y = self._genlift
-    H = sum( c * Y**i for i,c in enumerate(cc) )
-    return H
+    return self.graded_reduction_lift(h,0,0)
 
   ###########################  InductiveValuation  #############################
 
@@ -2239,7 +2179,7 @@ class InductiveValuation(SageObject):
     OUTPUT:
 
     - a triple ``f,i,j`` representing `(s')^i (t')^j f((s')^{d'}/(t')^{n'})`, a
-      lift of `c\,t^m` in the previous graded residue ring `k'[s',t',1/t']`.
+      lift of `c t^m` in the previous graded residue ring `k'[s',t',1/t']`.
       Here `n',d'` are the relative numerator and denominator of the previous
       stage, and
 
@@ -2442,6 +2382,17 @@ class InductiveValuation(SageObject):
     - a polynomial F(x) in self.polring().
 
     """
+    resring = self._residue_ring
+    polring = self._polring
+    f = resring(f)
+    if self._keyval == Infinity:
+      if self.is_stage_zero():
+        return polring(self._base_lift(f))
+      f0,i,j = self.graded_map_lift(f,0) # i and j should both be
+      assert i == j == 0
+      return self.prev().graded_reduction_lift(f0,0,0)
+
+
     D = self._denom
     n = self._relative_numer
     d = self._relative_denom
