@@ -24,6 +24,7 @@ TABLE OF CONTENTS
 
 - Utility Functions
 
+  - extension_field_polynomial
   - expand_polynomial
   - reduce_at_infinity
   - newton_slopes
@@ -1267,7 +1268,9 @@ class InductiveValuation(SageObject):
     Return the valuation of f with respect to self, normalized to have
     integer values
     """
-    return ZZ(self.valuation(f) / self._uniformizer_val)
+    v = self.valuation(f)
+    if v == Infinity: return v
+    return ZZ(v/self._uniformizer_val)
 
   def normalize(self, v):
     r"""
@@ -1283,6 +1286,7 @@ class InductiveValuation(SageObject):
       uniformizer of self
 
     """
+    if v == Infinity: return v
     n = v / self._uniformizer_val
     if n not in ZZ:
       raise ValueError('"v" not in the value group of self.')
