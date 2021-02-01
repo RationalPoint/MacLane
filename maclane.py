@@ -798,7 +798,6 @@ class InductiveValuation(SageObject):
     - keypol
     - keyval
     - keypolval
-    - keypol_degree
     - residue_ring
     - residue_constant_field
     - residue_constant_field_gen
@@ -1349,12 +1348,6 @@ class InductiveValuation(SageObject):
     Return the last key polynomial and its value
     """
     return self._keypol, self._keyval
-
-  def keypol_degree(self):
-    r"""
-    Return the degree of the current key polynomial
-    """
-    return self._keypol.degree()
 
   def residue_ring(self):
     r"""
@@ -2769,7 +2762,7 @@ class InductiveValuation(SageObject):
       if keyval <= self(keypol):
         raise ValueError('keyval is not larger than current value')
 
-    if collapse and self.keypol_degree() == keypol.degree():
+    if collapse and self.keypol().degree() == keypol.degree():
       if self.is_stage_zero():
         # Need to initialize a new stage-0 valuation
         kwargs['valuation'] = self._base_valuation
@@ -2967,12 +2960,12 @@ class InductiveValuation(SageObject):
     if self.is_stage_zero():
       return self
     S = self._stages[1:] + [self]
-    if all(V.prev().keypol_degree() < V.keypol_degree() for V in S):
+    if all(V.prev().keypol().degree() < V.keypol().degree() for V in S):
       return self
 
     # Proceed recursively.
     W = self.prev().collapse()
-    if W.keypol_degree() != self.keypol_degree():
+    if W.keypol().degree() != self.keypol().degree():
       return W.augment(self._keypol,self._keyval)
     # Now final key polynomial of W has same degree as current one
     if not W.is_stage_zero():
