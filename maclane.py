@@ -444,7 +444,26 @@ class ExtensionOfFiniteField(object):
     sage: z == K.reduce((a_3 + 1)*x^2 + (a_3^2 + 2)*x + 1)
     True
 
+  INSTANCE METHODS:
+
+    -  __init__
+    -  __repr__
+    -  characteristic
+    -  base_degree
+    -  degree
+    -  absolute_degree
+    -  base_gen
+    -  gen
+    -  field
+    -  base_field
+    -  coerce
+    -  lift
+    -  coerce_coefficients
+    -  reduce
+
   """
+
+
   def __init__(self, base_field, defining_polynomial, check_irreducible=False):
     if not base_field.is_finite():
       raise TypeError('base_field is not finite')
@@ -751,6 +770,89 @@ class InductiveValuation(SageObject):
 
       because we can simply collapse the resulting valuation afterward as in
       Lemma 15.1 of [MacLane-1].
+
+
+  INSTANCE METHODS:
+
+    - __init__
+    - _init_stage_zero
+    - name
+    - __repr__
+    - __str__
+    - str_compact
+    - validate
+    - expand
+    - base_valuation
+    - valuation
+    - normalized_valuation
+    - normalize
+    - __call__
+    - key_polval_list
+    - invariants
+    - __hash__
+    - iterstages
+    - __getitem__
+    - base_field
+    - polring
+    - keypol
+    - keyval
+    - keypolval
+    - keypol_degree
+    - residue_ring
+    - residue_constant_field
+    - residue_constant_field_gen
+    - residue_constant_field_reduce
+    - residue_constant_field_lift
+    - residue_constant_field_expand
+    - residue_constant_field_collapse
+    - relative_residue_degree
+    - residue_degree
+    - relative_ramification_index
+    - ramification_index
+    - base_uniformizer
+    - base_uniformizer_value
+    - uniformizer
+    - uniformizer_valuation
+    - stage_zero
+    - is_stage_zero
+    - valuation_at_stage
+    - stage
+    - prev
+    - _expand_all
+    - homogeneous_form
+    - reduce
+    - lift
+    - value_group_contains
+    - earliest_stage_with_value
+    - decompose_value
+    - polynomial_with_value
+    - graded_map
+    - graded_map_lift
+    - graded_reduction
+    - graded_reduction_lift
+    - residual_polynomial
+    - keypol_from_residual
+    - new_keys
+    - newton_slopes
+    - new_values
+    - new_key_value_pairs
+    - augment
+    - augmentations
+    - is_minimal
+    - is_key
+    - projection
+    - collapse
+    - decomposition
+    - equivalent_polynomials
+    - is_equiv_divisible_by_key
+    - effective_degree
+    - is_equiv_unit
+    - equiv_inverse
+    - equal_valuation
+    - __eq__
+    - __ne__
+
+
 
   """
   _class_name = 'maclane.InductiveValuation'
@@ -3503,6 +3605,33 @@ class ExtensionFieldValuation(SageObject):
       sage: V.reduce(f/5) == 0
       True
 
+  INSTANCE METHODS:
+
+    - __init__
+    - __repr__
+    - __call__
+    - lift_to_polring
+    - _augment_indval
+    - normalized_valuation
+    - field
+    - inductive_valuation
+    - augmented_inductive_valuations
+    - defining_polynomial
+    - residue_degree
+    - residue_field
+    - ramification_index
+    - uniformizer
+    - base_uniformizer
+    - reduce
+    - lift
+    - local_generator
+    - different_valuation
+    - discriminant_contribution
+    - __eq__
+    - __ne__
+    - other_valuations
+    - ideal_power_generator
+    - ideal_generators
 
   """
   _class_name = 'maclane.ExtensionFieldValuation'
@@ -4144,6 +4273,15 @@ class ExtensionFieldDecomposition(object):
   EXAMPLES::  # FIXME -- add some examples
 
 
+  INSTANCE METHODS:
+
+    - __init__
+    - __repr__
+    - extvals
+    - indvals
+    - numeric_data
+    - base_uniformizer
+
   """
 
   def __init__(self, field_or_polynomial, collapse=True, sort_order='resdeg-keycoefs', **stage_zero_kwargs):
@@ -4204,6 +4342,15 @@ class ExtensionFieldDecomposition(object):
       EE.append(ExtensionFieldValuation(L,W,**kwargs))
     self._extvals = tuple(EE)
 
+  def __repr__(self):
+    ss = []
+    for i,E in enumerate(self._extvals):
+      s = '({}:deg={})'.format(i,E.residue_degree())
+      e = E.ramification_index()
+      if e > 1:
+        s += '^{}'.format(e)
+      ss.append(s)
+    return ' * '.join(ss)
 
   def extvals(self):
     return self._extvals
@@ -4216,17 +4363,6 @@ class ExtensionFieldDecomposition(object):
 
   def base_uniformizer(self):
     return self._base_stage_zero.base_uniformizer()
-
-  def __repr__(self):
-    ss = []
-    for i,E in enumerate(self._extvals):
-      s = '({}:deg={})'.format(i,E.residue_degree())
-      e = E.ramification_index()
-      if e > 1:
-        s += '^{}'.format(e)
-      ss.append(s)
-    return ' * '.join(ss)
-
 
 ################################################################################
 ################################  Applications  ################################
