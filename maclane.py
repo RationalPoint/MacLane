@@ -699,16 +699,7 @@ class InductiveValuation(SageObject):
    - ``_residue_ring`` --  residue ring, a polynomial ring F[y] isomorphic to (K[x] meet O_V)/(K[x] meet m_V)
 
    - ``_genlift`` -- a polynomial over K with valuation 0, whose residue image
-     is a transcendental generator of the residue ring.
-
-   - ``_Q`` -- polynomial satisfying `V(Q) = W(Q) = t \mu` where V is the
-     current stage and W the previous stage, `\mu` is the current key value and
-     t is the relative denominator (index of the value group of W in the value
-     group of V).  Then Q is an equivalence unit for V, and if Qinv is its
-     equivalence inverse, then the residue image of `Y = Qinv * \phi^t` is the
-     transcendental generator of the residue ring, where `\phi` is the current
-     key polynomial. (See proofs of Theorems 10.2 and 12.1 in [MacLane-1].)
-     This `Y` is taken as the value of ``_genlift``.
+      is a transcendental generator of the valuation-0 residue ring.
 
   Attributes present only in stage 0:
 
@@ -822,15 +813,17 @@ class InductiveValuation(SageObject):
       # the finite part of the value group is the same as previous
       denom = self._denom = prev._denom
       self._relative_denom = ZZ(1)
-      self._relative_numer = Infinity
+      self._absolute_numer = Infinity
       self._uniformizer_val = prev._uniformizer_val
+      self._absolute_numer_inv = 0
+      self._relative_denom_inv = ZZ(1)
     else:
       prev_unif_val = prev._uniformizer_val
       unif_val,x0,y0,x1,y1 = discrete_generator(prev_unif_val,keyval)
       self._uniformizer_val = unif_val
       d = self._relative_denom = ZZ(prev_unif_val / unif_val)
       D = self._denom = prev._denom * d
-      n = self._relative_numer = ZZ(D*keyval)
+      n = self._absolute_numer = ZZ(D*keyval)
       g,a,b = xgcd(n,d)
       assert g == 1
       while a<0:
@@ -839,15 +832,9 @@ class InductiveValuation(SageObject):
       while a>=d:
         a -= d
         b += n
-      self._relative_numer_inv = a
+      self._absolute_numer_inv = a
       self._relative_denom_inv = b
 
-
-    # Find Q with V1(Q) = V(Q) = t*keyval
-    t = self._relative_denom
-    self._Q = Q = prev.polynomial_with_value(t*keyval)
-    _,Qinv,_ = xgcd(Q,keypol)
-    self._genlift = Qinv * keypol**t # lift of the residue ring generator
 
     # Compute residue ring:
     #   prev.residual_polynomial(keypol) is generating polynomial of new constant field
@@ -863,6 +850,8 @@ class InductiveValuation(SageObject):
     else:
       name = '{}{}'.format(self.name(),self.stage())
       self._residue_ring = PolynomialRing(E.field(),name)
+
+  # end of __init__
 
 
   ###########################  InductiveValuation  #############################
@@ -974,10 +963,8 @@ class InductiveValuation(SageObject):
     if keyval==Infinity:
       self._denom = base_unif_val.denominator()
       self._relative_denom = t = ZZ(1)
-      self._relative_numer = Infinity
+      self._absolute_numer = Infinity
       self._uniformizer_val = base_unif_val
-      self._Q = polring(0) # Residue ring is a field
-      self._genlift = polring(0) # Residue ring is a field
     else:
       self._denom = denom = LCM(keyval.denominator(),base_unif_val.denominator())
 
@@ -986,7 +973,7 @@ class InductiveValuation(SageObject):
       g = gcd(X,Y) # gcd = g in above notation
       self._uniformizer_val = unif_val = QQ(g) / QQ(denom)
       self._relative_denom = t = ZZ(base_unif_val/unif_val)
-      self._relative_numer = n = ZZ(denom * keyval)
+      self._absolute_numer = n = ZZ(denom * keyval)
       g,a,b = xgcd(n,t)
       assert g==1
       while a<0:
@@ -995,13 +982,11 @@ class InductiveValuation(SageObject):
       while a>=t:
         a -= t
         b += n
-      self._relative_numer_inv = a
+      self._absolute_numer_inv = a
       self._relative_denom_inv = b
+  # end of _init_stage_zero
 
-      s = ZZ(t*keyval/base_unif_val)
-      Q = unif**(s)
-      self._Q = polring(Q)
-      self._genlift = keypol**t / Q # lift of the residue ring generator
+
 
   ###########################  InductiveValuation  #############################
 
@@ -1029,8 +1014,6 @@ class InductiveValuation(SageObject):
     attr.append('_relative_denom')
     attr.append('_residue_constant_field')
     attr.append('_residue_ring')
-    attr.append('_Q')
-    attr.append('_genlift')
     n = max(len(a) for a in attr)
     u = self.stage_zero()._base_uniformizer
     K = self._base_field
@@ -1680,54 +1663,13 @@ class InductiveValuation(SageObject):
 
 
     """
-    V = self.valuation
-    v = V(H)
+    v = self.valuation(H)
     if v<0:
       raise ValueError('cannot reduce element of negative valuation')
     if v>0:
       return self._residue_ring(0)
-
-    # If stage-0, reduce coefficients of expansion with base_reduce.
-    # Otherwise, map coefficients to prev().residue_ring with prev().reduce,
-    # then use residue_extension.reduce().
-
-    if self._keyval == Infinity:
-      # only need the degree-0 coefficient
-      H0 = H.mod(self._keypol)
-      if self.is_stage_zero():
-        c = self._base_field(H0)
-        return self._base_reduce(c)
-      c = self.prev().reduce(H0)
-      return self._residue_extension.reduce(c)
-
-    Q = self._Q
-    mu = self._keyval
-    t = self._relative_denom
-    hh = {i:c for i,c in self.expand(H).items() if i % t == 0} # terms of degree ti = t*i
-
-    # get the coefficients to reduce
-    coefs = {}
-    for ti,h_ti in hh.items():
-      w = V(h_ti) if ti == 0 else V(h_ti) + ti*mu
-      if w > 0: continue
-      i = ZZ(ti//t)
-      if i == 0:
-        c = h_ti
-      else:
-        c = h_ti * Q**i # has valuation 0 since V(Q) = t*mu
-      coefs[i] = c
-
-    # reduce the coefficients
-    if self.is_stage_zero():
-      K = self._base_field
-      reduced_coefs = {i:self._base_reduce(K(c)) for i,c in coefs.items()}
-    else:
-      prev_red = self.prev().reduce
-      reduced_coefs = {i:self._residue_extension.reduce(prev_red(c)) for i,c in coefs.items()}
-
-    # return the polynomial with these coefficients
-    return self._residue_ring(reduced_coefs)
-
+    h,_,_,_ = self.graded_reduction(H)
+    return h
 
   ###########################  InductiveValuation  #############################
 
@@ -1737,7 +1679,7 @@ class InductiveValuation(SageObject):
 
     INPUT:
 
-    - ``h`` -- an element of the residue ring; this is a polynomial over a
+    - ``h`` -- an element of the value 0 residue ring; this is a polynomial over a
       finite field, or a finite field element if self._keyval is Infinity
 
     OUTPUT:
@@ -1746,20 +1688,7 @@ class InductiveValuation(SageObject):
 
     ALGORITHM:
 
-    - The residue ring at stage n is R_n = k_n[y], where k_n is a finite
-      extension of the stage-0 residue field, given by:
-
-      ..math::
-
-        k_n = R_{n-1}/(f_n)
-
-      where R_{n-1} is the stage n-1 residue ring and f_n is the residual
-      image of the key polynomial of self in R_{n-1}.
-
-      To lift h, we need to lift its coefficients (which are in k_n) to elements
-      of R_{n-1}, then use the previous stage lift function to lift them all the
-      way up.  Those lifted coefficients are then used as coefficients in an
-      expansion with respect to ...
+    - Calls graded_reduction_lift.
 
 
     EXAMPLES::
@@ -1784,28 +1713,8 @@ class InductiveValuation(SageObject):
       3
 
     """
-    Kpol = self._polring
-    if h == 0:
-      return Kpol(0)
-    keyval_is_infty = (self._keyval == Infinity)
-    # lift coefficients into previous residue ring
-    hlist = [h] if keyval_is_infty else list(h)
-    if self.is_stage_zero():
-      prev_res_ring = self._residue_constant_field
-      prev_lift = self._base_lift
-      hh = hlist
-    else:
-      prev = self.prev()
-      prev_res_ring = prev._residue_ring
-      prev_lift = prev.lift
-      lift_const = self._residue_extension.lift
-      hh = [lift_const(u) for u in hlist]
-    # lift from previous residue ring
-    cc = [ prev_lift(u) for u in hh ]
-    # construct polynomial in genlift
-    Y = self._genlift
-    H = sum( c * Y**i for i,c in enumerate(cc) )
-    return H
+    return self.graded_reduction_lift(h,i=0,j=0)
+
 
   ###########################  InductiveValuation  #############################
 
@@ -2030,30 +1939,76 @@ class InductiveValuation(SageObject):
 
   ## --- GRADED RESIDUE RING ---
   ##
-  ## The graded residue ring has the form R = k[s,t,1/t] where s is the image of
-  ## the current key polynomial, and t is the image of the previous-stage
-  ## uniformizer.  If d and D are relative and absolute value-group
-  ## denominators, and the current key value is n/D, with the grading in R
-  ## scaled to be integral, we have
+  ## Notation:
   ##
-  ##       grade(s) = n
-  ##       grade(t) = d
   ##
-  ##  and  R_0 = k[y]  where y = s^d/t^n.
+  ##       mu = n/d = current key value with (n,d) = 1
+  ##       D' = previous absolute denominator
+  ##       D  = absolute denominator
+  ##          = lcm(d,D')
+  ##       r  = D/D' = relative denominator
+  ##          = d/gcd(d,D')
+  ##       N  = (n/d) D   -- so mu = N/D
+  ##          = n*D'/gcd(d,D')
   ##
-  ## Any element of the value group can be written uniquely as i*n+j*d with i,j
-  ## integers and 0<=i<d, and the reduction of an element with that value can be
-  ## written uniquely as f(y) * s^i * t^j.  In the code, we represent such an
+  ##  Then we have:
+  ##
+  ##        gcd(N,r) = gcd(n*D'/gcd(d,D'), d/gcd(d,D'))
+  ##                 = gcd(n,d)
+  ##                 = 1
+  ##
+  ## The graded residue ring has the form R = k(t,u,1/u) where s is the image of
+  ## the current key polynomial, and u is the image of the previous-stage
+  ## uniformizer (or the base uniformizer for a stage-zero valuation). The field
+  ## k is the residue constant field.  In the case of an augmented valuation it
+  ## is described below.  For a stage-zero valuation it is just the residue
+  ## field of the base valuation.
+  ##
+  ## With notation above and with the grading in R scaled to be integral, we have
+  ##
+  ##       grade(t) = N
+  ##       grade(u) = r
+  ##
+  ##  and  R_0 = k[y]  where y = t^r/u^N.
+  ##
+  ## Any element of the value group can be written uniquely as i*N+j*r with i,j
+  ## integers and 0<=i<r, and the reduction of an element with that value can be
+  ## written uniquely as f(y) * t^i * u^j.  In the code, we represent such an
   ## element of R as a triple (f,i,j), with f in self.residue_ring().
+  ##
+  ## This also shows how to find a polynomial with given value. If F is the
+  ## current key polynomial and U the previous uniformizer, and Uinv its
+  ## equivalence inverse, the a polynomial with value (i*N+j*r)/D is F^i*U^j if
+  ## j>=0, or F^i*Uinv^(-j) if j<0.
+  ##
+  ## The graded reduction is computed by a recursive process, as described by MacLane.
+  ##
+  ## The residue constant field is constructed as follows.  If the previous
+  ## stage graded residue ring is R' = k'[t',u',1/u'], then k = k'[z]/(f(z))
+  ## where f is the image in R' of the _current_ key polynomial.  If N',r' are
+  ## previous stage absolute numerator and relative denominator, and a,b are the
+  ## unique integers with a N' + b r' = 1 and 0 <= a < r', then the map of
+  ## graded residue rings from previous to current stage is given by
+  ##
+  ##         t' |--> u^N' z^b
+  ##
+  ##         u' |--> u^r' / z^a
+  ## 
+  ## The image of this map is k[u,1/u] = k'[z,u,1/u]/(f(z)), and there is a partial
+  ## inverse k'[z,u,1/u] --> R' given by
+  ##
+  ##         z |--> y' = t'^r / u'^N
+  ##
+  ##         u |--> t'^a u'^b         -- which has grade (a N' + b r')/D' = 1/D'
   ##
   ## The following methods are provided:
   ##
   ## - graded_map
   ##     Computes the map of graded residue rings, from previous stage to
-  ##     current stage, whose image is k[t,1/t].
+  ##     current stage, whose image is k[u,1/u].
   ##
   ## - graded_map_lift
-  ##     Computes the inverse of graded_map on the subring k[t,1/t].
+  ##     Computes the partial inverse of graded_map on the subring k[u,1/u].
   ##
   ## - graded_reduction
   ##     Computes the graded residue image of a polynomial in K[x]
@@ -2062,28 +2017,17 @@ class InductiveValuation(SageObject):
   ##     Computes the unique homogeneous-form preimage of graded_reduction.
   ##
   ##
-  ## The map from the previous graded residue ring is computed as follows. If
-  ## the previous ring is R' = k'[s',t',1/t'], then k = k'[z]/(f(z)) where f is
-  ## the image in R' of the current key polynomial.  If a'n'+b'd' = 1, where
-  ## n',d' are previous stage numerator and denominator and 0<=a'<d', then the
-  ## map is given by
-  ##
-  ##         s' |--> t^n' z^b
-  ##
-  ##         t' |--> t^d' / z^a
-  ##
-  ## A lift of this is given by      FIXME -- Oh no!!!!!  Finish the sentence!
 
 
   def graded_map(self, f, i, j):
     r"""
     Map a homogeneous element of previous graded residue ring to that of self.
 
-    The graded residue ring of self.prev() has the form `k_0[s_0,t_0,1/t_0]`,
-    and the input element is `s_0^i t_0^j f(s_0^{d_0}/t_0^{n_0})` where
-    `n_0,d_0` are the relative numerator and denominator for self.prev().
+    The graded residue ring of self.prev() has the form `k_0[t_0,u_0,1/u_0]`,a
+    and the input element is `t_0^i u_0^j f(t_0^{r_0}/u_0^{N_0})` where
+    `n_0,d_0` are the absolute numerator and relative denominator for self.prev().
 
-    The graded residue ring of self has the form `k[s,t,1/t]`, where `k=k(z)` is
+    The graded residue ring of self has the form `k[t,u,1/u]`, where `k=k_0(z)` is
     a finite extension of the residue constant fields (with `z` a root of the
     previous-stage reduction of the current key polymomial), and the map is
     given by
@@ -2093,12 +2037,12 @@ class InductiveValuation(SageObject):
         s_0 &\mapsto t^{n_0}   z^b \\
         t_0 &\mapsto t^{d_0} / z^a
 
-    where `a n_0 + b d_0 = 1`, with `0\le a<d`.  In particular,
-    `s_0^{d_0}/t_0^{n_0}` maps to `z`, so
+    where `a N_0 + b r_0 = 1`, with `0\le a<r`.  In particular,
+    `y_0 := t_0^{r_0}/u_0^{N_0}` maps to `z`, so
 
     ..math::
 
-      s_^i t_^j f(s_^{d_0}/t_0^{n_0})  \mapsto  t^{in_0+jd_0} z^{ib-ja} f(z)
+      t_^i u_^j f(t_^{r_0}/u_0^{N_0})  \mapsto  u^{i N_0 + j r_0} z^{ib-ja} f(z)
 
     INPUT:
 
@@ -2108,22 +2052,22 @@ class InductiveValuation(SageObject):
 
     OUTPUT:
 
-    - c,m representing `c t^m`, image of `s_0^it_0^jf(s_0^{d_0}/t_0^{n_0})`,
+    - c,m representing `c u^m`, image of `t_0^i u_0^j f(y_0)`,
       where
 
       * c = the element `z^{ib-ja} f(z)` in self.residue_constant_field()
 
-      * m = the integer `m = in_0+jd_0`, exponent on `t`
+      * m = the integer `m = i N_0 +j r_0`, exponent on `u`
 
     """
     if self.is_stage_zero():
       raise TypeError('This method is not valid for stage-zero valuations')
     prev = self.prev()
-    n = prev._relative_numer
-    d = prev._relative_denom
-    a = prev._relative_numer_inv
+    N = prev._absolute_numer
+    r = prev._relative_denom
+    a = prev._absolute_numer_inv
     b = prev._relative_denom_inv
-    m = i*n+j*d
+    m = i*N+j*r
     z = self.residue_constant_field_gen()
     c = self.residue_constant_field_reduce(f)
     c *= z**(i*b-j*a)
@@ -2134,9 +2078,9 @@ class InductiveValuation(SageObject):
     r"""
     Lift an element in graded residue ring to previous-stage graded residue ring.
 
-    The graded residue ring has the form `k[s,t,1/t]`, and the elements that
-    lift to the previous stage are the ones of the form `c t^m` with `c \in k`
-    and `j \in \ZZ`.
+    The graded residue ring has the form `k[t,u,1/u]`, and the elements that
+    lift to the previous stage are the ones of the form `c u^m` with `c \in k`
+    and `m \in \ZZ`.
 
     INPUT:
 
@@ -2146,10 +2090,10 @@ class InductiveValuation(SageObject):
 
     OUTPUT:
 
-    - a triple ``f,i,j`` representing `(s')^i (t')^j f((s')^{d'}/(t')^{n'})`, a
-      lift of `c\,t^m` in the previous graded residue ring `k'[s',t',1/t']`.
-      Here `n',d'` are the relative numerator and denominator of the previous
-      stage, and
+    - a triple ``f,i,j`` representing `(t')^i (u')^j f(y')`, a lift of `c/,t^m`
+      in the previous graded residue ring `k'[t',u',1/u']`.  Here y' = (s')^{d'}/(t')^{n'}
+      where `n',d'` are the absolute numerator and relative denominator of the previous stage,
+      and
 
       * ``f`` is an element of self.prev().residue_ring()
 
@@ -2159,17 +2103,17 @@ class InductiveValuation(SageObject):
     if self.is_stage_zero():
       raise TypeError('This method is not valid for stage-zero valuations')
     prev = self.prev()
-    n = prev._relative_numer
-    d = prev._relative_denom
-    a = prev._relative_numer_inv
+    N = prev._absolute_numer
+    r = prev._relative_denom
+    a = prev._absolute_numer_inv
     b = prev._relative_denom_inv
     i = ZZ(a*m)
-    if 0 <= i < d:
+    if 0 <= i < r:
       j = b*m
       f = self.residue_constant_field_lift(c)
     else:
-      v,i = i.quo_rem(d)
-      j = n*v + b*m
+      v,i = i.quo_rem(r)
+      j = N*v + b*m
       z = self.residue_constant_field_gen()
       f = self.residue_constant_field_lift(c * z**v)
     return f, i, j
@@ -2189,58 +2133,61 @@ class InductiveValuation(SageObject):
 
       - ``fbar`` -- univariate polynomial over the residue constant field k
 
-      - ``i,j`` -- integers, with i in range(0,d)
+      - ``i,j`` -- integers, with i in range(0,r)  where r is the relative denominator
 
       - ``v`` -- rational number
 
-      representing the homogeneous element s^i t^j f(s^d/t^n) of grade v in the
+      representing the homogeneous element t^i u^j f(y) of grade v in the
       graded residue ring k[s,t,1/t], where
+
+        * y = t^r/u^N   generates the grade-0 residue ring
 
         * D = self._denom  [ = self.ramification_index() * self.base_uniformizer_value() ]
 
-        * d = self.relative_ramification_index()
+        * r = self.relative_ramification_index()  (= D if stage zero)
 
-        * n = self.keyval() * D
+        * N = self.keyval() * D
 
-        * v = (i*n+j*d)/D
+        * v = (i*N+j*r)/D
 
     METHOD:
 
     If `\rho` is the reduction map, `\phi` the key polynomial and `\pi` a
-    uniformizer for the previous stage, the residue ring is `k[s,t,1/t]`
-    where
+    uniformizer for the previous stage (or base uniformizer if stage zero), the
+    residue ring is `k[t,u,1/u]` where
 
-      * `s = \rho(\phi)`   has grade `n/D`
+      * `t = \rho(\phi)`   has grade `N/D`
 
-      * `t = \rho(\pi)`    has grade `d/D`
+      * `u = \rho(\pi)`    has grade `r/D`
 
-    and any homogeneous element of grade N/D has the form
+    and any homogeneous element of grade M/D has the form
 
     ..math::
 
-      s^{i_0} t^{j_0} H(s^d/t^n)
+      s^{i_0} t^{j_0} H(y)
 
-    where `i_0,j_0` are the unique integers with `i_0*n+j_0*d=N` and
-    `0\le{i_0}<d`, and H has coefficients in the constant field `k`. Thus
-    for each term `c \phi^i` of minimum value `N/D` in the expansion of `f`, we
+    where `i_0,j_0` are the unique integers with `i_0*N+j_0*r=M` and
+    `0\le{i_0}<r`, and H has coefficients in the constant field `k`. Thus
+    for each term `c \phi^i` of minimum value `M/D` in the expansion of `f`, we
     get a term
 
     ..math::
 
-      s^i \rho(c)  &=  s^{i_0} t^{mn} \rho(c) (s^d/t^n)^m \\
-                   &=  s^{i_0} t^{j_0} cbar (s^d/t^n)^m \\
+      t^i \rho(c)  &=  t^{i_0} u^{mN} \rho(c) (t^d/u^n)^m \\
+                   &=  t^{i_0} u^{j_0} cbar (t^r/u^N)^m \\
 
-    where `m = (i-i_0)/d`, and `\rho(c)\in k[t,1/t]` necessarily has the form
-    `\rho(c)=cbar t^{j_0-mn}` with `cbar\in k`.  To compute `\rho(c)`, we first
+    where `m = (i-i_0)/r`, and `\rho(c)\in k[u,1/u]` necessarily has the form
+    `\rho(c)=cbar u^{j_0-mN}` with `cbar\in k`.  To compute `\rho(c)`, we first
     reduce `c` with respect to the previous stage, as a homogeneous element of
-    the residue ring k0[s_0,t_0,1/t_0], expressed analogously to the above, and
-    then call self.graded_map() to get an element of `k[t,1/t]`.
+    the residue ring k_0[t_0,u_0,1/u_0], expressed analogously to the above, and
+    then call self.graded_map() to get an element of `k[u,1/u]`.
 
 
     """
     R = self._residue_ring
-
     # Infinite key value
+    if f == 0:
+      return R(0),0,0,0
     if self._keyval == Infinity:
       c = f % self._keypol
       if c == 0:
@@ -2250,6 +2197,7 @@ class InductiveValuation(SageObject):
       if self.is_stage_zero():
         # Use base-field valuation for coefficients.
         K = self._base_field
+        c = K(c)
         V = self._base_valuation
         p = self._base_uniformizer
         v = V(K(c))
@@ -2259,15 +2207,16 @@ class InductiveValuation(SageObject):
       # Augmentation
       prev = self.prev()
       c0,i0,j0,v = prev.graded_reduction(c)
-      j = j0 + i0 * prev._keyval * prev._denom
-      return R(c0),0,j,v
+      cbar, j = self.graded_map(c0,i0,j0) # image of map from previous ring.
+      return cbar,0,j,v
 
     # Finite key value
 
     ff = {}
-    d = self._relative_denom
-    n = self._relative_numer
-    ninv = n.inverse_mod(d)
+    r = self._relative_denom
+    N = self._absolute_numer
+    Ninv = self._absolute_numer_inv
+    D = self._denom
 
     # Stage zero
     if self.is_stage_zero():
@@ -2281,28 +2230,27 @@ class InductiveValuation(SageObject):
         v = V(K(c))
         j = ZZ(v/B)
         cbar = red(K(c)/p**j)   # NOTE: cbar has grade 0
-        ff[i] = (j,i*n+j*d,cbar)
+        ff[i] = (j,i*N+j*r,cbar)
       Vfnum = min(vnum for _,vnum,_ in ff.values())
       i0 = None
       gg = {}
       for i,(j,vnum,cbar) in ff.items():
         if vnum != Vfnum: continue
-        # Term is s^i t^j cbar = s^i0 t^j0 cbar (s^d/t^n)^m   for some m
+        # Term is t^i u^j cbar = t^i0 u^j0 cbar (t^d/u^N)^m   for some m
         if i0 is None:
-          i0 = i%d
-          j0 = (Vfnum-i0*n)//d
-        m = (i-i0)//d
+          i0 = i%r
+          j0 = (Vfnum-i0*N)//r
+        m = (i-i0)//r
         gg[m] = cbar
       assert len(gg) > 0, 'Graded reduction should not be zero!'
-      return R(gg),i0,j0,Vfnum/self._denom
+      return R(gg),i0,j0,Vfnum/D
 
     # Augmentation
-    D = self._denom
     prev = self.prev()
     for i,c in self.expand(f).items():
       if c==0: continue
       c1,i1,j1,Vc = prev.graded_reduction(c)
-      Vnum = ZZ(Vc*D) + i*n
+      Vnum = ZZ(Vc*D) + i*N
       ff[i] = (Vnum,i1,j1,c1)
     Vfnum = min(Vnum for Vnum,_,_,_ in ff.values())
     gg = {}
@@ -2311,11 +2259,11 @@ class InductiveValuation(SageObject):
     for i,(Vnum,i1,j1,c1) in ff.items():
       if Vnum != Vfnum: continue
       if i0 is None:
-        i0 = (ninv*Vfnum) % d
-        j0 = (Vfnum - i0*n) // d
-      m = (i-i0)//d
+        i0 = (Ninv*Vfnum) % r
+        j0 = (Vfnum - i0*N) // r
+      m = (i-i0)//r
       cbar, j = self.graded_map(c1,i1,j1) # Image of map from previous ring.
-      assert j==j0-m*n                    # Reality check.
+      assert j==j0-m*N                    # Reality check.
       cc[m] = cbar
     return R(cc),i0,j0,Vfnum/D
 
@@ -2324,25 +2272,28 @@ class InductiveValuation(SageObject):
     r"""
     Return a lift to self.polring() of a homogeneous element of the residue ring of self.
 
-    The residue ring is `k[s,t,1/t]` where `s = \rho(\phi)` and `t=\rho(\pi)`,
+    The residue ring is `k[t,u,1/u]` where `t = \rho(\phi)` and `u=\rho(\pi)`,
     for `\phi` the last key polynomial of self, and `\pi` a uniformizer for the
-    previous stage.  Homogeneous elements have the form `f(s^d/t^n) s^i t^j`.
+    previous stage.  Homogeneous elements have the form `f(y) t^i u^j` with `y =
+    t^r/u^N` where r is the relative denominator of the value group and N is the
+    absolute numerator of the key value
 
     INPUT:
 
     - ``f`` -- a polynomial over self.residue_constant_field().
 
-    - ``i,j`` -- optional integers, with `i\ge 0`, exponents on `s` and `t`
+    - ``i,j`` -- optional integers, with `i\ge 0`, exponents on `t` and `u`
       respectively.  Either of these that is not given is determined by ``v``
       (see below).  If ``v`` is not given, then the defaults are `i=0` and
-      `j=n\deg(f)` (making the lift be monic in `\phi`).
+      `j=N*\deg(f)` (making the lift be monic in `\phi`), unless the key value is
+      infinite in which case the defaults are i=j=0.
 
     - ``v`` -- optional rational number, in the value group of self.  This is
       ignored if both ``i,j`` are given.  Otherwise, `i,j` (or whichever is not
-      given) are determined as the integer solutions to `in+jd=vD`, where `d,D`
+      given) are determined as the integer solutions to `iN+jr=vD`, where `r,D`
       are the relative and absolute denominators (respectively) of the value
-      group, and `n/D` is the key value.  If `i` is not given, then this
-      solution is made unique by also requiring `0\le i<d`.  An error is raised
+      group, and `N/D` is the key value.  If `i` is not given, then this
+      solution is made unique by also requiring `0\le i<r`.  An error is raised
       if no solution exists.
 
     OUTPUT:
@@ -2350,48 +2301,72 @@ class InductiveValuation(SageObject):
     - a polynomial F(x) in self.polring().
 
     """
+    if (i is None or j is None) and v is not None:
+      if not self.value_group_contains(v):
+        raise ValueError('Specified value is not in value group')
+
+    stage_zero = self.is_stage_zero()
+
     D = self._denom
-    n = self._relative_numer
-    d = self._relative_denom
-    a = self._relative_numer_inv
+    prev = self.prev()
+
+    if self._keyval == Infinity:
+      if i is None and i != 0:
+        raise ValueError('Cannot have nonzero i with infinite key value')
+      i = 0
+      if j is None:
+        if v is None:
+          j = 0
+        else:
+          j = ZZ(v*D)
+
+      if stage_zero:
+        F = self._base_lift(f) * self._base_uniformizer**j
+      else:
+        f0,i0,j0 = self.graded_map_lift(f,j)
+        F = prev.graded_reduction_lift(f0,i0,j0)
+      return F
+
+    N = self._absolute_numer
+    r = self._relative_denom
+    a = self._absolute_numer_inv
     b = self._relative_denom_inv
-    deg = f.degree()
+
     if i is None or j is None:
       if v is None:
         if i is None:
           i = 0
         if j is None:
-          j = n * f.degree()
+          j = N * f.degree()
       else:
         vnum = ZZ(v*D)
         if i is None and j is None:
-          # i*n + j*d = v*D
-          i = (vnum * a) % d
-          j = (vnum - i*n) // d
+          # i*N + j*r = v*D
+          i = (vnum * a) % r
+          j = (vnum - i*N) // r
         elif i is None:
-          inum = vnum - j*d
-          if inum % n != 0:
+          inum = vnum - j*r
+          if inum % N != 0:
             raise ValueError('Given values of j and v are incompatible')
-          i = inum//n
+          i = inum//N
         else:
-          jnum = vnum - i*n
-          if jnum % d != 0:
+          jnum = vnum - i*N
+          if jnum % r != 0:
             raise ValueError('Given values of i and v are incompatible')
-          j = jnum//d
-
+          j = jnum//r
     if i < 0:
       raise ValueError('Value of i must be non-negative')
 
     R = self.polring()
     F = R(0)
     phi = self.keypol()
-    prev = self.prev()
+
     for k,c in enumerate(f.list()):
       if c==0: continue
-      # Lift c t^(j-kn) s^(i+kd) -->  C \phi^(i+kd)
-      ii = i+k*d
-      jj = j-k*n
-      if self.is_stage_zero():
+      # Lift c u^(j-kN) t^(i+kr) -->  C \phi^(i+kr)
+      ii = i+k*r
+      jj = j-k*N
+      if stage_zero:
         C = self._base_lift(c) * self._base_uniformizer**jj
       else:
         f0,i0,j0 = self.graded_map_lift(c,jj)
@@ -2413,7 +2388,7 @@ class InductiveValuation(SageObject):
 
     OUTPUT:
 
-    - the reduction of R*f, where R is the polynomial returned by
+    - the image of reduction of R*f, where R is the polynomial returned by
       self.polynomial_with_value(v) for v = -self.valuation(f).
 
     EXAMPLES::
@@ -3653,6 +3628,8 @@ class ExtensionFieldValuation(SageObject):
 
     """
     v = self(elt) # non-normalized valuation
+    if v == Infinity:
+      return Infinity
     pi_val = self._indval.uniformizer_valuation()
     return ZZ(v / pi_val)
 
