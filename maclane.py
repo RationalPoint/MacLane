@@ -699,7 +699,7 @@ class InductiveValuation(SageObject):
    - ``_residue_ring`` --  residue ring, a polynomial ring F[y] isomorphic to (K[x] meet O_V)/(K[x] meet m_V)
 
    - ``_genlift`` -- a polynomial over K with valuation 0, whose residue image
-      is a transcendental generator of the valuation-0 residue ring.
+     is a transcendental generator of the valuation-0 residue ring.
 
   Attributes present only in stage 0:
 
@@ -984,8 +984,8 @@ class InductiveValuation(SageObject):
         b += n
       self._absolute_numer_inv = a
       self._relative_denom_inv = b
-  # end of _init_stage_zero
 
+  # end of _init_stage_zero
 
 
   ###########################  InductiveValuation  #############################
@@ -1941,7 +1941,6 @@ class InductiveValuation(SageObject):
   ##
   ## Notation:
   ##
-  ##
   ##       mu = n/d = current key value with (n,d) = 1
   ##       D' = previous absolute denominator
   ##       D  = absolute denominator
@@ -1951,13 +1950,13 @@ class InductiveValuation(SageObject):
   ##       N  = (n/d) D   -- so mu = N/D
   ##          = n*D'/gcd(d,D')
   ##
-  ##  Then we have:
+  ## Then we have:
   ##
-  ##        gcd(N,r) = gcd(n*D'/gcd(d,D'), d/gcd(d,D'))
-  ##                 = gcd(n,d)
-  ##                 = 1
+  ##       gcd(N,r) = gcd(n*D'/gcd(d,D'), d/gcd(d,D'))
+  ##                = gcd(n,d)
+  ##                = 1
   ##
-  ## The graded residue ring has the form R = k(t,u,1/u) where s is the image of
+  ## The graded residue ring has the form R = k[t,u,1/u] where s is the image of
   ## the current key polynomial, and u is the image of the previous-stage
   ## uniformizer (or the base uniformizer for a stage-zero valuation). The field
   ## k is the residue constant field.  In the case of an augmented valuation it
@@ -1981,7 +1980,8 @@ class InductiveValuation(SageObject):
   ## equivalence inverse, the a polynomial with value (i*N+j*r)/D is F^i*U^j if
   ## j>=0, or F^i*Uinv^(-j) if j<0.
   ##
-  ## The graded reduction is computed by a recursive process, as described by MacLane.
+  ## The graded reduction is computed by a recursive process, as described by
+  ## MacLane.
   ##
   ## The residue constant field is constructed as follows.  If the previous
   ## stage graded residue ring is R' = k'[t',u',1/u'], then k = k'[z]/(f(z))
@@ -1993,7 +1993,7 @@ class InductiveValuation(SageObject):
   ##         t' |--> u^N' z^b
   ##
   ##         u' |--> u^r' / z^a
-  ## 
+  ##
   ## The image of this map is k[u,1/u] = k'[z,u,1/u]/(f(z)), and there is a partial
   ## inverse k'[z,u,1/u] --> R' given by
   ##
@@ -2023,7 +2023,7 @@ class InductiveValuation(SageObject):
     r"""
     Map a homogeneous element of previous graded residue ring to that of self.
 
-    The graded residue ring of self.prev() has the form `k_0[t_0,u_0,1/u_0]`,a
+    The graded residue ring of self.prev() has the form `k_0[t_0,u_0,1/u_0]`,
     and the input element is `t_0^i u_0^j f(t_0^{r_0}/u_0^{N_0})` where
     `n_0,d_0` are the absolute numerator and relative denominator for self.prev().
 
@@ -2034,8 +2034,8 @@ class InductiveValuation(SageObject):
 
     ..math::
 
-        s_0 &\mapsto t^{n_0}   z^b \\
-        t_0 &\mapsto t^{d_0} / z^a
+        t_0 &\mapsto u^{N_0}   z^b \\
+        u_0 &\mapsto u^{r_0} / z^a
 
     where `a N_0 + b r_0 = 1`, with `0\le a<r`.  In particular,
     `y_0 := t_0^{r_0}/u_0^{N_0}` maps to `z`, so
@@ -2090,7 +2090,7 @@ class InductiveValuation(SageObject):
 
     OUTPUT:
 
-    - a triple ``f,i,j`` representing `(t')^i (u')^j f(y')`, a lift of `c/,t^m`
+    - a triple ``f,i,j`` representing `(t')^i (u')^j f(y')`, a lift of `c\,t^m`
       in the previous graded residue ring `k'[t',u',1/u']`.  Here y' = (s')^{d'}/(t')^{n'}
       where `n',d'` are the absolute numerator and relative denominator of the previous stage,
       and
@@ -2173,7 +2173,7 @@ class InductiveValuation(SageObject):
 
     ..math::
 
-      t^i \rho(c)  &=  t^{i_0} u^{mN} \rho(c) (t^d/u^n)^m \\
+      t^i \rho(c)  &=  t^{i_0} u^{mN} \rho(c) (t^r/u^N)^m \\
                    &=  t^{i_0} u^{j_0} cbar (t^r/u^N)^m \\
 
     where `m = (i-i_0)/r`, and `\rho(c)\in k[u,1/u]` necessarily has the form
@@ -2207,7 +2207,7 @@ class InductiveValuation(SageObject):
       # Augmentation
       prev = self.prev()
       c0,i0,j0,v = prev.graded_reduction(c)
-      cbar, j = self.graded_map(c0,i0,j0) # image of map from previous ring.
+      cbar, j = self.graded_map(c0,i0,j0) # Image of map from previous ring.
       return cbar,0,j,v
 
     # Finite key value
@@ -2236,7 +2236,7 @@ class InductiveValuation(SageObject):
       gg = {}
       for i,(j,vnum,cbar) in ff.items():
         if vnum != Vfnum: continue
-        # Term is t^i u^j cbar = t^i0 u^j0 cbar (t^d/u^N)^m   for some m
+        # Term is t^i u^j cbar = t^i0 u^j0 cbar (t^r/u^N)^m   for some m
         if i0 is None:
           i0 = i%r
           j0 = (Vfnum-i0*N)//r
@@ -2285,7 +2285,7 @@ class InductiveValuation(SageObject):
     - ``i,j`` -- optional integers, with `i\ge 0`, exponents on `t` and `u`
       respectively.  Either of these that is not given is determined by ``v``
       (see below).  If ``v`` is not given, then the defaults are `i=0` and
-      `j=N*\deg(f)` (making the lift be monic in `\phi`), unless the key value is
+      `j=N*deg(f)` (making the lift be monic in `\phi`), unless the key value is
       infinite in which case the defaults are i=j=0.
 
     - ``v`` -- optional rational number, in the value group of self.  This is
