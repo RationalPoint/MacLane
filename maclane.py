@@ -24,6 +24,7 @@ TABLE OF CONTENTS
 
 - Utility Functions
 
+  - extension_field_polynomial
   - expand_polynomial
   - reduce_at_infinity
   - newton_slopes
@@ -312,7 +313,7 @@ def inductive_valuation_from_invariants(indval, resdeg_ramind_list):
     sage: V0 = p_adic_inductive_valuation(7,'x')
     sage: V1 = inductive_valuation_from_invariants(V0, [(2,1),(4,3)])
     sage: data = []
-    sage: for V in V1.iterstages():
+    sage: for V in V1.stages():
     ....:   resdeg = V.relative_residue_degree()
     ....:   ramind = V.relative_ramification_index()
     ....:   data.append((resdeg,ramind))
@@ -444,7 +445,26 @@ class ExtensionOfFiniteField(object):
     sage: z == K.reduce((a_3 + 1)*x^2 + (a_3^2 + 2)*x + 1)
     True
 
+  INSTANCE METHODS:
+
+    -  __init__
+    -  __repr__
+    -  characteristic
+    -  base_degree
+    -  degree
+    -  absolute_degree
+    -  base_gen
+    -  gen
+    -  field
+    -  base_field
+    -  coerce
+    -  lift
+    -  coerce_coefficients
+    -  reduce
+
   """
+
+
   def __init__(self, base_field, defining_polynomial, check_irreducible=False):
     if not base_field.is_finite():
       raise TypeError('base_field is not finite')
@@ -743,6 +763,87 @@ class InductiveValuation(SageObject):
       because we can simply collapse the resulting valuation afterward as in
       Lemma 15.1 of [MacLane-1].
 
+
+  INSTANCE METHODS:
+
+    - __init__
+    - _init_stage_zero
+    - name
+    - __repr__
+    - __str__
+    - str_compact
+    - validate
+    - expand
+    - base_valuation
+    - valuation
+    - normalized_valuation
+    - normalize
+    - __call__
+    - key_polval_list
+    - invariants
+    - __hash__
+    - stages
+    - __getitem__
+    - base_field
+    - polring
+    - keypol
+    - keyval
+    - keypolval
+    - residue_ring
+    - residue_constant_field
+    - residue_constant_field_gen
+    - residue_constant_field_reduce
+    - residue_constant_field_lift
+    - residue_constant_field_expand
+    - residue_constant_field_collapse
+    - relative_residue_degree
+    - residue_degree
+    - relative_ramification_index
+    - ramification_index
+    - base_uniformizer
+    - base_uniformizer_value
+    - uniformizer
+    - uniformizer_valuation
+    - stage_zero
+    - is_stage_zero
+    - stage
+    - prev
+    - _expand_all
+    - homogeneous_form
+    - reduce
+    - lift
+    - value_group_contains
+    - earliest_stage_with_value
+    - decompose_value
+    - polynomial_with_value
+    - graded_map
+    - graded_map_lift
+    - graded_reduction
+    - graded_reduction_lift
+    - residual_polynomial
+    - keypol_from_residual
+    - new_keys
+    - newton_slopes
+    - new_values
+    - new_key_value_pairs
+    - augment
+    - augmentations
+    - is_minimal
+    - is_key
+    - projection
+    - collapse
+    - decomposition
+    - equivalent_polynomials
+    - is_equiv_divisible_by_key
+    - effective_degree
+    - is_equiv_unit
+    - equiv_inverse
+    - equal_valuation
+    - __eq__
+    - __ne__
+
+
+
   """
   _class_name = 'maclane.InductiveValuation'
 
@@ -963,7 +1064,9 @@ class InductiveValuation(SageObject):
     if keyval==Infinity:
       self._denom = base_unif_val.denominator()
       self._relative_denom = t = ZZ(1)
+      self._relative_denom_inv = ZZ(1)
       self._absolute_numer = Infinity
+      self._absolute_numer_inv = ZZ(0)
       self._uniformizer_val = base_unif_val
     else:
       self._denom = denom = LCM(keyval.denominator(),base_unif_val.denominator())
@@ -998,7 +1101,7 @@ class InductiveValuation(SageObject):
 
   def __repr__(self):
     s = self.stage()
-    pv = [(V._keypol,V._keyval) for V in self.iterstages()]
+    pv = [(V._keypol,V._keyval) for V in self.stages()]
     if self.stage_zero()._intrinsic_uniformizer:
       return 'Stage {} valuation with (keypol,keyval) sequence {}'.format(s,pv)
     u = self.stage_zero()._base_uniformizer
@@ -1052,7 +1155,7 @@ class InductiveValuation(SageObject):
       '7;,0,1:0;,1,0,1:1/2;,8,0,2,0,1:1/0'
     """
     s = str(self.base_uniformizer())
-    for i,V in enumerate(self.iterstages()):
+    for i,V in enumerate(self.stages()):
       s += ';'
       for j,c in enumerate(list(V._keypol)):
         s += ',' + repr(c)
@@ -1148,7 +1251,9 @@ class InductiveValuation(SageObject):
     Return the valuation of f with respect to self, normalized to have
     integer values
     """
-    return ZZ(self.valuation(f) / self._uniformizer_val)
+    v = self.valuation(f)
+    if v == Infinity: return v
+    return ZZ(v/self._uniformizer_val)
 
   def normalize(self, v):
     r"""
@@ -1164,6 +1269,7 @@ class InductiveValuation(SageObject):
       uniformizer of self
 
     """
+    if v == Infinity: return v
     n = v / self._uniformizer_val
     if n not in ZZ:
       raise ValueError('"v" not in the value group of self.')
@@ -1175,21 +1281,21 @@ class InductiveValuation(SageObject):
   ###########################  InductiveValuation  #############################
 
   def key_polval_list(self):
-    return tuple((V.keypol(),V.keyval()) for V in self.iterstages())
+    return tuple((V.keypol(),V.keyval()) for V in self.stages())
 
   def invariants(self):
     r"""
     Return relative (residue_degree, ramification_index) for all stages of self.
     """
     cc = []
-    for V in self.iterstages():
+    for V in self.stages():
       cc.append((V.relative_residue_degree(), V.relative_ramification_index()))
     return cc
 
   def __hash__(self):
     return hash(self.key_polval_list())
 
-  def iterstages(self):
+  def stages(self):
     r"""
     Return an iterator over the stages of self.
     """
@@ -1201,7 +1307,11 @@ class InductiveValuation(SageObject):
     r"""
     Return the stage-i predecessor of self.
     """
-    return self.valuation_at_stage(i)
+    if i > len(self._stages):
+      raise ValueError('No stage-{} valuation associated with self.'.format(i))
+    if i == len(self._stages):
+      return self
+    return self._stages[i]
 
   def base_field(self):
     r"""
@@ -1226,12 +1336,6 @@ class InductiveValuation(SageObject):
     Return the last key polynomial and its value
     """
     return self._keypol, self._keyval
-
-  def keypol_degree(self):
-    r"""
-    Return the degree of the current key polynomial
-    """
-    return self._keypol.degree()
 
   def residue_ring(self):
     r"""
@@ -1294,11 +1398,11 @@ class InductiveValuation(SageObject):
 
       sage: Z = p_adic_inductive_valuation(11,'x')
       sage: V = inductive_valuation_from_invariants(Z,[(1,1),(2,1),(3,1)])
-      sage: V0,V1,V2 = list(V.iterstages())
-      sage: R0,R1,R2 = [v.residue_ring() for v in V.iterstages()]
+      sage: V0,V1,V2 = list(V.stages())
+      sage: R0,R1,R2 = [v.residue_ring() for v in V.stages()]
       sage: M1 = V1.residue_constant_field_reduce
       sage: M2 = V2.residue_constant_field_reduce
-      sage: g0,g1,g2 = [v.residue_constant_field_gen() for v in V.iterstages()]
+      sage: g0,g1,g2 = [v.residue_constant_field_gen() for v in V.stages()]
       sage: z0 = M2(R1(M1(R0(g0))))
       sage: print(z0)
       1
@@ -1321,13 +1425,13 @@ class InductiveValuation(SageObject):
       sage: V0 = p_adic_inductive_valuation(11, key_polynomial=f0, key_value=1/2)
       sage: V1 = V0.augment(f1, 5/4)
       sage: V2 = V1.augment(f2, 21/4)
-      sage: invariants = [(V.relative_residue_degree(),V.relative_ramification_index()) for V in V2.iterstages()]
+      sage: invariants = [(V.relative_residue_degree(),V.relative_ramification_index()) for V in V2.stages()]
       sage: print(invariants)
       [(1, 2), (1, 2), (2, 1)]
-      sage: R0,R1,R2 = [v.residue_ring() for v in V2.iterstages()]
+      sage: R0,R1,R2 = [v.residue_ring() for v in V2.stages()]
       sage: M1 = V1.residue_constant_field_reduce
       sage: M2 = V2.residue_constant_field_reduce
-      sage: g0,g1,g2 = [v.residue_constant_field_gen() for v in V2.iterstages()]
+      sage: g0,g1,g2 = [v.residue_constant_field_gen() for v in V2.stages()]
       sage: z0 = M2(R1(M1(R0(g0))))
       sage: print(z0)
       1
@@ -1466,23 +1570,13 @@ class InductiveValuation(SageObject):
     r"""
     Return the stage-0 valuation associated to self
     """
-    return self.valuation_at_stage(0)
+    return self[0]
 
   def is_stage_zero(self):
     r"""
     Return True if self is a stage-0 valuation
     """
     return len(self._stages)==0
-
-  def valuation_at_stage(self, n):
-    r"""
-    Return the stage-n valuation associated to self
-    """
-    if n > len(self._stages):
-      raise ValueError('No stage-{} valuation associated with self.'.format(n))
-    if n == len(self._stages):
-      return self
-    return self._stages[n]
 
   def stage(self):
     r"""
@@ -1619,13 +1713,13 @@ class InductiveValuation(SageObject):
       w = v * pval # valuation of c*p^v
       for j, mj in enumerate(m):
         if mj == 0: continue
-        w += mj * self.valuation_at_stage(j)._keyval
+        w += mj * self[j]._keyval
       if w > vf:
         # omit this term
         continue
       # add this term
       c = V0._base_lift(V0._base_reduce(c)) # find representative of c
-      F += c * p**v * prod(self.valuation_at_stage(j)._keypol**mj for j,mj in enumerate(m))
+      F += c * p**v * prod(self[j]._keypol**mj for j,mj in enumerate(m))
     return F
 
   ###########################  InductiveValuation  #############################
@@ -1663,13 +1757,13 @@ class InductiveValuation(SageObject):
 
 
     """
-    v = self.valuation(H)
+    h,_,_,v = self.graded_reduction(H)
     if v<0:
       raise ValueError('cannot reduce element of negative valuation')
     if v>0:
       return self._residue_ring(0)
-    h,_,_,_ = self.graded_reduction(H)
     return h
+
 
   ###########################  InductiveValuation  #############################
 
@@ -1793,7 +1887,7 @@ class InductiveValuation(SageObject):
 
         sage: print(V.str_compact())
         2;,1,1:1/2;,3,2,1:7/6;,35,62,63,44,21,6,1:107/30
-        sage: v0,v1,v2 = [W.keyval() for W in V.iterstages()]
+        sage: v0,v1,v2 = [W.keyval() for W in V.stages()]
         sage: V.decompose_value(127/30)
         (-1, [1, 1, 1])
         sage: 127/30 == -1 + v0 + v1 + v2
@@ -1812,7 +1906,7 @@ class InductiveValuation(SageObject):
         sage: W = V.augment(V.keypol(),Infinity)
         sage: print(W.str_compact())
         2;,1,1:1/2;,3,2,1:7/6;,35,62,63,44,21,6,1:1/0
-        sage: v0,v1,v2 = [Z.keyval() for Z in W.iterstages()]
+        sage: v0,v1,v2 = [Z.keyval() for Z in W.stages()]
         sage: W.decompose_value(1/6)
         (-1, [0, 1, 0])
         sage: 1/6 == -1 + v1
@@ -1827,12 +1921,12 @@ class InductiveValuation(SageObject):
     v /= b  # use normalized base valuation
     z = floor(v)
     v -= z  # now v >= 0
-    if v == 0: return z, [0 for _ in self.iterstages()]
+    if v == 0: return z, [0 for _ in self.stages()]
     V = self
     cc = []
     while V is not None:
       if v in ZZ:
-        cc.extend([0 for _ in V.iterstages()])
+        cc.extend([0 for _ in V.stages()])
         break
       W = V.earliest_stage_with_value(b*v)
       if W is None:
@@ -1932,7 +2026,7 @@ class InductiveValuation(SageObject):
 
     z, cc = self.decompose_value(v)
     p = self.base_uniformizer()
-    return p**z * prod(W.keypol()**c for W,c in zip(self.iterstages(),cc))
+    return p**z * prod(W.keypol()**c for W,c in zip(self.stages(),cc))
 
 
   ###########################  InductiveValuation  #############################
@@ -2309,6 +2403,7 @@ class InductiveValuation(SageObject):
 
     D = self._denom
     prev = self.prev()
+    polring = self._polring
 
     if self._keyval == Infinity:
       if i is None and i != 0:
@@ -2325,7 +2420,7 @@ class InductiveValuation(SageObject):
       else:
         f0,i0,j0 = self.graded_map_lift(f,j)
         F = prev.graded_reduction_lift(f0,i0,j0)
-      return F
+      return polring(F)
 
     N = self._absolute_numer
     r = self._relative_denom
@@ -2638,7 +2733,7 @@ class InductiveValuation(SageObject):
       if keyval <= self(keypol):
         raise ValueError('keyval is not larger than current value')
 
-    if collapse and self.keypol_degree() == keypol.degree():
+    if collapse and self.keypol().degree() == keypol.degree():
       if self.is_stage_zero():
         # Need to initialize a new stage-0 valuation
         kwargs['valuation'] = self._base_valuation
@@ -2836,12 +2931,12 @@ class InductiveValuation(SageObject):
     if self.is_stage_zero():
       return self
     S = self._stages[1:] + [self]
-    if all(V.prev().keypol_degree() < V.keypol_degree() for V in S):
+    if all(V.prev().keypol().degree() < V.keypol().degree() for V in S):
       return self
 
     # Proceed recursively.
     W = self.prev().collapse()
-    if W.keypol_degree() != self.keypol_degree():
+    if W.keypol().degree() != self.keypol().degree():
       return W.augment(self._keypol,self._keyval)
     # Now final key polynomial of W has same degree as current one
     if not W.is_stage_zero():
@@ -3478,6 +3573,33 @@ class ExtensionFieldValuation(SageObject):
       sage: V.reduce(f/5) == 0
       True
 
+  INSTANCE METHODS:
+
+    - __init__
+    - __repr__
+    - __call__
+    - lift_to_polring
+    - _augment_indval
+    - normalized_valuation
+    - field
+    - inductive_valuation
+    - augmented_inductive_valuations
+    - defining_polynomial
+    - residue_degree
+    - residue_field
+    - ramification_index
+    - uniformizer
+    - base_uniformizer
+    - reduce
+    - lift
+    - local_generator
+    - different_valuation
+    - discriminant_contribution
+    - __eq__
+    - __ne__
+    - other_valuations
+    - ideal_power_generator
+    - ideal_generators
 
   """
   _class_name = 'maclane.ExtensionFieldValuation'
@@ -4121,6 +4243,15 @@ class ExtensionFieldDecomposition(object):
   EXAMPLES::  # FIXME -- add some examples
 
 
+  INSTANCE METHODS:
+
+    - __init__
+    - __repr__
+    - extvals
+    - indvals
+    - numeric_data
+    - base_uniformizer
+
   """
 
   def __init__(self, field_or_polynomial, collapse=True, sort_order='resdeg-keycoefs', **stage_zero_kwargs):
@@ -4165,9 +4296,9 @@ class ExtensionFieldDecomposition(object):
         p = W.base_uniformizer()
         d = W.residue_degree()
         if sort_order == 'resdeg-keycoefs':
-          key_list = [(list(V._keypol),V._keyval) for V in W.iterstages()]
+          key_list = [(list(V._keypol),V._keyval) for V in W.stages()]
         elif sort_order == 'resdeg-keys':
-          key_list = [(V._keypol,V._keyval) for V in W.iterstages()]
+          key_list = [(V._keypol,V._keyval) for V in W.stages()]
         elif sort_order == 'resdeg-keycoef-string':
           key_list = W.str_compact()
         else:
@@ -4181,6 +4312,15 @@ class ExtensionFieldDecomposition(object):
       EE.append(ExtensionFieldValuation(L,W,**kwargs))
     self._extvals = tuple(EE)
 
+  def __repr__(self):
+    ss = []
+    for i,E in enumerate(self._extvals):
+      s = '({}:deg={})'.format(i,E.residue_degree())
+      e = E.ramification_index()
+      if e > 1:
+        s += '^{}'.format(e)
+      ss.append(s)
+    return ' * '.join(ss)
 
   def extvals(self):
     return self._extvals
@@ -4193,17 +4333,6 @@ class ExtensionFieldDecomposition(object):
 
   def base_uniformizer(self):
     return self._base_stage_zero.base_uniformizer()
-
-  def __repr__(self):
-    ss = []
-    for i,E in enumerate(self._extvals):
-      s = '({}:deg={})'.format(i,E.residue_degree())
-      e = E.ramification_index()
-      if e > 1:
-        s += '^{}'.format(e)
-      ss.append(s)
-    return ' * '.join(ss)
-
 
 ################################################################################
 ################################  Applications  ################################
@@ -4744,7 +4873,7 @@ def sort_indvals(indval_list):
   fe_vals_list = []
   for V in indval_list:
     fe_vals = []
-    for W in V.iterstages():
+    for W in V.stages():
       f = W.relative_residue_degree()
       e = W.relative_ramification_index()
       fe_vals.append((f,e))
@@ -4939,7 +5068,7 @@ def decomp_graph(arg, collapse=False, sort=True, expansion=1, **kwargs):
      ((1, 0, None, (2, 2)), (2, 0, 0, (1, 1))),
      ((1, 0, None, (2, 2)), (3, 0, 1, (1, 1)))]
     sage: for i,V in enumerate(VV):
-    ....:   for j,W in enumerate(V.iterstages()):
+    ....:   for j,W in enumerate(V.stages()):
     ....:     print('{} {} {}'.format(i, j, vals_to_G[W]))
     0 0 (0, 0, None, (1, 1))
     0 1 (1, 0, None, (2, 2))
@@ -4969,7 +5098,7 @@ def decomp_graph(arg, collapse=False, sort=True, expansion=1, **kwargs):
   vv = {}
   keypols = {}
   for VV_ind,V in enumerate(VV):
-    for U in V.iterstages():
+    for U in V.stages():
       v = vv.get(U)
       if v is None:
         i = len(G)
