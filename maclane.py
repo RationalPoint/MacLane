@@ -62,7 +62,7 @@ TABLE OF CONTENTS
 """
 
 from sage.all import *
-
+import itertools
 
 
 ################################################################################
@@ -5126,13 +5126,16 @@ def decomp_graph(arg, collapse=False, sort=True, expansion=1, **kwargs):
 
 #######################  CONSTRUCTION AND VISUALIZATION  #######################
 
-def indvals_from_decomp_graph(G, **stage_zero_kwargs):
-  r"""
+def indvals_from_decomp_graph(G, random=False, **stage_zero_kwargs):
+  r""".
   Return a list of inductive valuations with decomposition graph G.
 
   INPUT:
 
   - ``G`` -- a DiGraph object of the type returned by decomp_graph()
+
+  - ``random`` -- boolean (default: False); whether to choose random key
+    polynomials rather than loop over coefficients deterministically
 
   - Remaining keyword arguments are passed to StageZeroValuation to specify a
     stage-zero valuation.  See docstring for StageZeroValuation and
@@ -5157,8 +5160,8 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
       sage: len(VV)
       2
       sage: for V in VV: print(V.key_polval_list())
-      ((x, 0), (x^2 + 3*x - 1, 1/2), (x^4 + 6*x^3 + 7*x^2 + 15*x + 8, 3/2))
-      ((x, 0), (x^2 + 3*x - 1, 1/2), (x^4 + 6*x^3 + 7*x^2 + 15*x + 8, 5/2))
+      ((x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 8, 3/2))
+      ((x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 8, 5/2))
 
       sage: G1,_ = decomp_graph(VV)
       sage: G1 == G
@@ -5196,11 +5199,11 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
       sage: VV = indvals_from_decomp_graph(G,indval=Z)
       sage: len(VV)
       4
-      sage: for V in VV: print(V.key_polval_list()) # random
-      ((x, 0), (x^3 + x^2 + x + 2, 1/2), (x^6 + 2*x^5 + 3*x^4 + 6*x^3 + 5*x^2 + 7*x + 7, 5/4), (x^12 + 4*x^11 + 10*x^10 + 24*x^9 + 43*x^8 + 70*x^7 + 108*x^6 + 148*x^5 + 169*x^4 + 172*x^3 + 155*x^2 + 98*x + 49, 11/4))
-      ((x + 1, 2/3), (x^6 + 6*x^5 + 15*x^4 + 20*x^3 + 15*x^2 + 6*x + 82, 13/3), (x^6 + 12*x^5 + 45*x^4 + 80*x^3 + 129*x^2 + 144*x + 142, 14/3))
-      ((x + 1, 2/3), (x^6 + 6*x^5 + 15*x^4 + 29*x^3 + 42*x^2 + 33*x + 172, 13/3))
-      ((x + 1, 1/3), (x^3 + 3*x^2 + 3*x + 7, 4/3))
+      sage: for V in VV: print(V.key_polval_list())
+      ((x, 0), (x^3 - x + 1, 1/2), (x^6 - 2*x^4 + 2*x^3 + x^2 - 2*x + 4, 5/4), (x^12 - 4*x^10 + 4*x^9 + 6*x^8 - 12*x^7 + 8*x^6 + 12*x^5 - 23*x^4 + 21*x^3 + 12*x^2 - 25*x + 25, 11/4))
+      ((x + 1, 1/3), (x^6 + 6*x^5 + 15*x^4 + 20*x^3 + 15*x^2 + 6*x + 10, 7/3), (x^6 + 6*x^5 + 15*x^4 + 20*x^3 + 15*x^2 - 3*x + 1, 8/3))
+      ((x + 1, 1/3), (x^6 + 6*x^5 + 15*x^4 + 23*x^3 + 24*x^2 + 15*x - 5, 7/3))
+      ((x + 1, 2/3), (x^3 + 3*x^2 + 3*x + 10, 7/3))
       sage: G1,_ = decomp_graph(VV)
       sage: G1 == G
       True
@@ -5272,13 +5275,14 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
   while len(VVgraph) < len(G):
     # pick a leaf node of VVgraph to augment
     ss = VVgraph.sinks()
-    for V in ss:
+    for V in sorted(ss, key=VVgraph.get_vertex):
       v = VVgraph.get_vertex(V)
       if G.out_degree(v) > 0: break
     else:
       raise RuntimeError('Something is wrong: ran out of nodes to process!')
 
     R = V.residue_ring()
+    K = R.base()
 
     ww = G.neighbors_out(v)
 
@@ -5297,24 +5301,39 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
       n = len(pol_inds)
       # make n monic irreducible polynomials of degree f in the residue ring
       pols = set()
-      num_rpts = 0
-      while len(pols) < n and num_rpts < 10: # limit repeats to avoid infinite loop
-        psi = R.random_element(f)
-        psi /= psi.leading_coefficient()
-        if psi in pols:
-          num_rpts += 1
-          continue
-        if not psi.is_irreducible() or psi == R.gen():
-          continue
-        phi = V.keypol_from_residual(psi)
-        if phi in all_keypols:
-          num_rpts += 1
-          continue
-        pols.add(psi)
-        all_keypols.add(phi)
+
+      if random:
+        num_rpts = 0
+        while len(pols) < n:
+          if num_rpts == 10:
+            raise RuntimeError('Failed to find {} irreducibles of degree {} in {}'.format(n,f,R))
+          psi = R.random_element(f)
+          psi /= psi.leading_coefficient()
+          if psi in pols:
+            num_rpts += 1
+            continue
+          if psi.degree() < f: continue
+          if not psi.is_irreducible() or psi == R.gen():
+            continue
+          phi = V.keypol_from_residual(psi)
+          if phi in all_keypols:
+            num_rpts += 1
+            continue
+          pols.add(psi)
+          all_keypols.add(phi)
+      else:
+        for cc in itertools.product(K,repeat=f):
+          psi = R(list(cc)+[1])
+          if psi in pols: continue
+          if not psi.is_irreducible() or psi == R.gen(): continue
+          phi = V.keypol_from_residual(psi)
+          if phi in all_keypols: continue
+          pols.add(psi)
+          all_keypols.add(phi)
+
       if len(pols) < n:
         raise RuntimeError('Failed to find {} irreducibles of degree {} in {}'.format(n,f,R))
-      for j,psi in zip(pol_inds,pols):
+      for j,psi in zip(pol_inds,sorted(pols)):
         keypols[j] = V.keypol_from_residual(psi)
     # make the list of valuations for pair phi,e
     keypolvals = {}
@@ -5323,6 +5342,7 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
       ee = set(e for _,i,_,(_,e) in ww if i==j)
       for e in ee:
         wwej = [w for w in ww if w[3][1]==e and w[1]==j]
+        wwej.sort()
         d = V.ramification_index() * e
         # Need x/d > mu0 and gcd(x,d) = 1
         x = ceil(d*mu0)
@@ -5348,7 +5368,7 @@ def indvals_from_decomp_graph(G, **stage_zero_kwargs):
 
 #######################  CONSTRUCTION AND VISUALIZATION  #######################
 
-def polynomial_from_indvals(indval_list, new_vals=None):
+def polynomial_from_indvals(indval_list):
   r"""
   Return a polynomial F with decomposition graph similar to that of given list of inductive valuations.
 
@@ -5356,10 +5376,6 @@ def polynomial_from_indvals(indval_list, new_vals=None):
 
   - ``indval_list`` -- a list of inductive valuations over a common base field
     valuation v, with the last-stage key polynomials all distinct
-
-  - ``new_vals`` -- optional empty list in which to store modifications of
-    ``indval_list`` that have the same graph, but with respect to which the
-    returned polynomial will have projection 1.
 
   OUTPUT:
 
@@ -5503,22 +5519,34 @@ def polynomial_from_indvals(indval_list, new_vals=None):
   Construct the polynomial, and check that the modified valuations have expected
   properties::
 
-    sage: WW = []
-    sage: F = polynomial_from_indvals(VV, new_vals=WW)
-    sage: print(F)               # random
-       x^26 - 146*x^25 - 259*x^24 + 825142*x^23 - 35015723*x^22 + 509826803*x^21
-       - 543614143*x^20 - 60557210383*x^19 + 574994541490*x^18 - 18215995661*x^17
-       - 35463900426221*x^16 + 225410056296662*x^15 + 475904582253472*x^14
-       - 9452318859479474*x^13 + 20413137602064254*x^12 + 129094931478251531*x^11
-       - 810682555051461634*x^10 - 460086174945181547*x^9 + 7661267621604004187*x^8
-       - 17933407623007247704*x^7 - 52671567760825067852*x^6 + 79641613850347429133*x^5
-       - 30075808685289928651*x^4 - 165565815089804928383*x^3 + 384156854425326459886*x^2
-       - 270803434901693859668*x + 60701450056052224337
-    sage: [W.projection(F) for W in WW]
-    [1, 1, 1, 1, 1]
-    sage: GWW,_ = decomp_graph(WW)
-    sage: GWW == GVV
-    True
+    sage: F = polynomial_from_indvals(VV)
+    sage: F.dict()
+    {0: 10301051461084444185331126431523,
+     1: -286083451321244566560,
+     2: 10030310536892358532,
+     3: -362700290423736324,
+     4: 4601016972828389706,
+     5: 1604098342761700086,
+     6: 560815210537610833,
+     7: 198328473196388091,
+     8: 55779293546844196,
+     9: 12865948632525690,
+     10: 3271951263789522,
+     11: 785562745131369,
+     12: 138550864920666,
+     13: 26776605505572,
+     14: 5566185834801,
+     15: 727635439332,
+     16: 106991756946,
+     17: 22359753378,
+     18: 743489008,
+     19: 378117072,
+     20: 8046592,
+     21: 2185218,
+     22: 74283,
+     23: 6885,
+     24: 394,
+     26: 1}
 
   The graph agrees with the original up to permutation::
 
@@ -5553,21 +5581,12 @@ def polynomial_from_indvals(indval_list, new_vals=None):
     t = ceil(max(0,-Z(a),-Z(b))/vp)
     e = max(e, 1 + floor(max(v/vp, 2*t)))
   # Now ensure that the key values in indval_list can be modified to make F have
-  # projection 1.  If new_vals is given, we also construct those modified
-  # valuations and append them to new_vals.
+  # projection 1.
   for V in indval_list:
     v = V.keyval()
     vv = sum(V(f) for f in ff if f != V.keypol())
     if e < v+vv:
       e = ceil(v+vv)
-    if new_vals is None: continue
-    w = e - vv
-    f = V.keypol()
-    if V.is_stage_zero():
-      W = StageZeroValuation(f,w,indval=V)
-    else:
-      W = V.prev().augment(f,w,collapse=False,check=True)
-    new_vals.append(W)
   q = p**e
   F = fff + q
   n = 1
