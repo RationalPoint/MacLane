@@ -4230,7 +4230,6 @@ class ExtensionFieldDecomposition(object):
 
     * "resdeg-keys" -- first by residue degree, then by the list of
       (keypol,keyval) pairs for all stages, starting with stage zero.
-      This is the default.
 
     * "resdeg-keycoef-string" -- first by residue degree, then by a compact
       string representation of the list of (keypol,keyval) pairs, as returned by
@@ -5368,40 +5367,55 @@ def indvals_from_decomp_graph(G, random=False, **stage_zero_kwargs):
 
 #######################  CONSTRUCTION AND VISUALIZATION  #######################
 
-def polynomial_from_indvals(indval_list):
-  r"""
+def polynomial_from_indvals(indval_list, random=False, max_tries=100):
+  r""".
   Return a polynomial F with decomposition graph similar to that of given list of inductive valuations.
 
   INPUT:
 
-  - ``indval_list`` -- a list of inductive valuations over a common base field
-    valuation v, with the last-stage key polynomials all distinct
+  - ``indval_list`` -- a list of pairwise inequivalent inductive valuations over
+    a common base field valuation v, with each one having relative ramfication
+    index equal to 1.
+
+  - ``random`` -- boolean (default: False); whether to add random polynomials to
+    make result irreducible; if False and characteristic is zero, positive
+    integers will be added in sequence; if False and characteristic is positive,
+    polynomials of increasing degree will be exhausted
+
+  - ``max_tries`` -- positive integer (default: 100); if ``random`` is True,
+    maximum number of tries to find an irreducible polynomial; ignored if
+    ``random`` is False.
+
 
   OUTPUT:
 
-  - a polynomial F whose decomposition graph, with respect to v, is similar to
-    the decomposition graph of indval_list. Exactly what "similar" should mean
-    is somewhat unclear.  But if indval_list is the (collapsed, projection 1)
-    decomposition of some polynomial F_0, then the decomposition graph of F
-    *should* be the same as that of F_0.
+  - a polynomial F such that indval_list is the decomposition of F.  This means:
+
+    * V.projection(F) == 1  for all V in indval_list
+
+    * deg(F) == sum(deg(V.keypol()) for V in indval_list_)
+
+  NOTE:
+
+  - If the base field is finite, it is possible the algorithm will fail to find
+    a suitable irreducible polynomial.  In that case a RuntimeError will be
+    raised.
+
+  - If ``random`` is False, the result will be deterministic. 
 
 
   EXAMPLES::
 
     sage: R.<x> = QQ[]
     sage: F = x^8 + 4*x^6 + 69*x^4 + 130*x^2 + 17263
-    sage: E = p_adic_decomposition(7,F)
-    sage: VV = [V.augmentations(F)[0] for V in E.indvals()]
+    sage: VV = p_adic_decomposition(7,F,collapse=False).indvals()
     sage: VV
-    [Stage 2 valuation over 7 with (keypol,keyval) sequence [(x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 57, 3)],
-     Stage 2 valuation over 7 with (keypol,keyval) sequence [(x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 351, 4)]]
+    [Stage 2 valuation over 7 with (keypol,keyval) sequence [(x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 8, 2)],
+     Stage 2 valuation over 7 with (keypol,keyval) sequence [(x, 0), (x^2 + 1, 1/2), (x^4 + 2*x^2 + 8, 3)]]
     sage: F1 = polynomial_from_indvals(VV)
     sage: F1
     x^8 + 4*x^6 + 412*x^4 + 816*x^2 + 137656
-    sage: E1 = p_adic_decomposition(7,F1)
-    sage: WW = [V.augmentations(F1)[0] for V in E1.indvals()]
-    sage: G,_ = decomp_graph(VV); H,_ = decomp_graph(WW)
-    sage: G == H
+    sage: VV == p_adic_decomposition(7,F1,collapse=False).indvals()
     True
 
   Start with a polynomial F whose decomposition graph, G, looks like this:
@@ -5424,11 +5438,9 @@ def polynomial_from_indvals(indval_list):
     sage: F += 136828644*x^5 + 102804602*x^4 + 65848373*x^3 + 32799489*x^2 + 11495600*x + 1995376
     sage: Z = p_adic_inductive_valuation(3,name='x')
     sage: E = ExtensionFieldDecomposition(F,indval=Z)
-    sage: G,_ = decomp_graph(E.indvals())
-    sage: F1 = polynomial_from_indvals(E.indvals())
-    sage: E1 = ExtensionFieldDecomposition(F1,indval=Z)
-    sage: G1,_ = decomp_graph(E1.indvals())
-    sage: G1 == G
+    sage: VV = E.indvals()
+    sage: F1 = polynomial_from_indvals(VV)
+    sage: VV == p_adic_decomposition(3,F).indvals()
     True
 
   Try the more complicated example.
@@ -5462,8 +5474,11 @@ def polynomial_from_indvals(indval_list):
     sage: Z = p_adic_inductive_valuation(3,'x')
     sage: VV = indvals_from_decomp_graph(G,indval=Z)
     sage: F = polynomial_from_indvals(VV)
-    sage: G1,_ = decomp_graph(F,sort=False,indval=Z)
-    sage: G1 == G
+    sage: VV_F = p_adic_decomposition(3,F).indvals()
+    sage: sort_key = lambda V: V.key_polval_list()
+    sage: VV.sort(key=sort_key)
+    sage: VV_F.sort(key=sort_key)
+    sage: VV == VV_F
     True
 
   Try a crazy example.
@@ -5506,7 +5521,6 @@ def polynomial_from_indvals(indval_list):
     sage: G.add_edge(v9,v10)
     sage: G.add_edge(v10,v11)
     sage: G.add_edge(v10,v12)
-    sage: compute_vertex_positions(G,2)
 
   We construct the valuations and the graph is the same::
 
@@ -5516,85 +5530,85 @@ def polynomial_from_indvals(indval_list):
     sage: GVV == G
     True
 
-  Construct the polynomial, and check that the modified valuations have expected
-  properties::
+  Construct the polynomial, and check that its decomposition agrees with VV::
 
     sage: F = polynomial_from_indvals(VV)
     sage: F.dict()
-    {0: 10301051461084444185331126431523,
-     1: -286083451321244566560,
-     2: 10030310536892358532,
-     3: -362700290423736324,
-     4: 4601016972828389706,
-     5: 1604098342761700086,
-     6: 560815210537610833,
-     7: 198328473196388091,
-     8: 55779293546844196,
-     9: 12865948632525690,
-     10: 3271951263789522,
-     11: 785562745131369,
-     12: 138550864920666,
-     13: 26776605505572,
-     14: 5566185834801,
-     15: 727635439332,
-     16: 106991756946,
-     17: 22359753378,
-     18: 743489008,
-     19: 378117072,
-     20: 8046592,
-     21: 2185218,
-     22: 74283,
+    {0: -1410152819550963206297,
+     1: 6905351497047334378047,
+     2: 6691711767128502050002,
+     3: 2436501645330148278495,
+     4: 679997229617095558287,
+     5: 207908110569257214759,
+     6: 61896264197049942535,
+     7: 13773317982911297649,
+     8: 2700758799835829599,
+     9: 616815390422519424,
+     10: 124889802795296217,
+     11: 20016940632045777,
+     12: 2979151753880184,
+     13: 589056719061276,
+     14: 76384145460003,
+     15: 9594168680763,
+     16: 1020796836336,
+     17: 191386866339,
+     18: 8328334273,
+     19: 1593621054,
+     20: 58673455,
+     21: 5531328,
+     22: 306834,
      23: 6885,
-     24: 394,
+     24: 880,
      26: 1}
-
-  The graph agrees with the original up to permutation::
-
-    sage: GraphF,_ = decomp_graph(F,indval=Z)  # (GF would be a bad name!)
-    sage: GraphF == G
-    False
-    sage: sort_decomp_graph(GraphF) == sort_decomp_graph(G)
+    sage: VV_F = p_adic_decomposition(3,F,collapse=False).indvals()
+    sage: sort_key = lambda V: V.key_polval_list()
+    sage: VV.sort(key=sort_key)
+    sage: VV_F.sort(key=sort_key)
+    sage: VV == VV_F
     True
 
   """
-  ff = [V.keypol() for V in indval_list]
-  if len(set(ff)) < len(ff):
-    raise TypeError('last key polynomials are not distinct')
+  VV = indval_list
+  if not all(V.relative_ramification_index() == 1 for V in VV):
+    raise TypeError('last stage relative ramification indices are not all 1')
 
-  # FIXME -- the following definition of Z is bad if V.stage_zero().keyval() < 0
-  # FIXME -- for some V in indval_list
-  Z = StageZeroValuation(indval=indval_list[0])
+  V0 = VV[0]
+  R = V0.polring()
+  p = V0.base_uniformizer()
+  ff = [V.keypol() for V in VV]
+  hh = [V.polynomial_with_value(V.keyval()) for V in VV]
+  F0 = prod(f+h for f,h in zip(ff,hh))
+  m = 1 + floor(max(V(F0) for V in VV))
+  q = p**m
 
-  p = Z.uniformizer()
-  vp = Z.uniformizer_valuation()
+  if random:
+    d = F0.degree() - 1
+    num_tries = 0
+    while num_tries < max_tries:
+      num_tries += 1
+      F = F0 + q * R.random_element(d)
+      if is_irreducible(F):
+        return F
+    raise RuntimeError('failed to find irreducible polynomial')
 
-  # Choose e so that Generalized Hensel gives factorizations of F = prod(ff) + p^e
-  # equivalent to (ff[i]) * (prod(ff)/ff[i])  for every i.
-  v = sum(Z(f) for f in ff)
-  fff = prod(ff)
-  e = 0
-  for f in ff:
-    g = fff//f
-    h,a,b = xgcd(f,g)
-    if h != 1:
-      raise RuntimeError('Something is wrong: distinct key polynomials are not relatively prime!')
-    t = ceil(max(0,-Z(a),-Z(b))/vp)
-    e = max(e, 1 + floor(max(v/vp, 2*t)))
-  # Now ensure that the key values in indval_list can be modified to make F have
-  # projection 1.
-  for V in indval_list:
-    v = V.keyval()
-    vv = sum(V(f) for f in ff if f != V.keypol())
-    if e < v+vv:
-      e = ceil(v+vv)
-  q = p**e
-  F = fff + q
-  n = 1
-  while not F.is_irreducible():
-    n += 1
-    if Z(n) > 0: n += 1
-    F = fff + q*n
-  return F
+  # find F deterministically 
+  if R.characteristic() == 0:
+    F = F0 + q
+    while not F.is_irreducible():
+      F += q
+    return F
+
+  # now characteristic is positive: exhaust
+  d = F0.degree()
+  r = R.characteristic()
+  K = GF(r)
+  for cc in itertools.product(K,repeat=d):
+    f = R(cc)
+    F = F0 + q*f
+    if F.is_irreducible():
+      return F
+  raise RuntimeError('failed to find irreducible polynomial')
+    
 
 #######################  CONSTRUCTION AND VISUALIZATION  #######################
 
