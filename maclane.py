@@ -1446,14 +1446,24 @@ class InductiveValuation(SageObject):
       sage: V2.residue_constant_field_expand(z2)
       [[0], [1]]
 
+    Demonstrate fixed bug when polynomial representation of elt has lower degree
+    and previous residue constant field is not absolute::
+
+      sage: Z = p_adic_inductive_valuation(11,'x')
+      sage: V = inductive_valuation_from_invariants(Z, [(1,2),(2,3),(1,2),(3,2)])
+      sage: F = V.residue_constant_field()
+      sage: elt = F(1)
+      sage: V.residue_constant_field_expand(elt)
+      [[[1, 0]], [[0, 0]], [[0, 0]]]
+
     """
     if self.is_stage_zero():
       return elt
     cc = list(self.residue_constant_field_lift(elt))
-    F = self.residue_constant_field()
+    V = self.prev()
+    F = V.residue_constant_field()
     while len(cc) < self.relative_residue_degree():
       cc.append(F(0))
-    V = self.prev()
     return [ V.residue_constant_field_expand(c) for c in cc ]
 
 
@@ -1488,6 +1498,10 @@ class InductiveValuation(SageObject):
       sage: cc = V.residue_constant_field_expand(c)
       sage: c == V.residue_constant_field_collapse(cc)
       True
+
+      sage: x0_2_3 = V.residue_constant_field().gen()
+      sage: c = x0_2_3^2 + 1
+
 
     """
     if self.is_stage_zero():
